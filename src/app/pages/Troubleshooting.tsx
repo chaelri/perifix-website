@@ -20,7 +20,6 @@ import {
   Home,
   Mail,
   Edit,
-  Shield,
   Maximize2,
   ThumbsUp,
   ThumbsDown,
@@ -35,7 +34,6 @@ import { supabase } from "../utils/supabase/client";
 import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
 import { DeviceCategorySkeleton, FetchingBadge } from "../components/skeletons/Skeletons";
-import logoImage from "../assets/perifix-logo.png";
 
 type ProblemSeverity = "common" | "moderate" | "rare";
 
@@ -102,7 +100,6 @@ export function Troubleshooting(_props: TroubleshootingProps) {
   const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
   const [expandedDevice, setExpandedDevice] = useState<string | null>(null);
   const [expandedSeverity, setExpandedSeverity] = useState<string | null>(null);
-  const [editMode, setEditMode] = useState(false);
   const [highlightedSeverity, setHighlightedSeverity] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [contactModalOpen, setContactModalOpen] = useState(false);
@@ -434,56 +431,40 @@ export function Troubleshooting(_props: TroubleshootingProps) {
   };
 
   return (
-    <div className="min-h-screen py-12 bg-gradient-to-br from-blue-50 to-white">
-      {isAdmin && (
-        <div className="bg-amber-500 border-b-2 border-amber-600 py-3 px-4 sticky top-16 z-40 shadow-md">
-          <div className="max-w-7xl mx-auto flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Shield className="w-5 h-5 text-white" />
-              <span className="text-white">
-                Admin Mode: You have edit access to all troubleshooting content
-              </span>
-            </div>
-            <Button
-              variant={editMode ? "default" : "outline"}
-              size="sm"
-              onClick={() => {
-                setEditMode(!editMode);
-                toast.info(editMode ? "Edit mode disabled" : "Edit mode enabled");
-              }}
-              className={
-                editMode
-                  ? "bg-white text-amber-600 hover:bg-gray-100 border-0"
-                  : "border-2 border-white text-white hover:bg-amber-600 hover:border-white bg-transparent"
-              }
-            >
-              <Edit className="w-4 h-4 mr-2" />
-              {editMode ? "Exit Edit Mode" : "Enable Edit Mode"}
-            </Button>
-          </div>
-        </div>
-      )}
-
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-12">
-        <div className="text-center max-w-3xl mx-auto">
-          <div className="flex justify-center mb-6">
-            <img src={logoImage} alt="PERIFIX Logo" className="w-32 h-32 object-contain" />
-          </div>
-          <h1 className="mb-4">Device Troubleshooting Guide</h1>
-          <p className="text-xl text-muted-foreground">
-            Select a device category to view troubleshooting steps
-          </p>
-        </div>
-      </div>
-
+    <div className="min-h-screen py-6 bg-gradient-to-br from-blue-50 to-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <SmartSearchBar devices={devices} />
+        {/* Compact heading + admin shortcut + fetching badge on one line */}
+        <div className="flex flex-wrap items-end justify-between gap-3 mb-4">
+          <div>
+            <h1 className="mb-0">Troubleshooting</h1>
+            <p className="text-sm text-muted-foreground">
+              Search a device issue or pick a category below.
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <FetchingBadge isFetching={isFetching} isPending={isLoading} />
+            {isAdmin && (
+              <Link to="/admin/troubleshooting">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="border-amber-300 text-amber-700 hover:bg-amber-50"
+                >
+                  <Edit className="w-3.5 h-3.5 mr-1.5" />
+                  Manage content
+                </Button>
+              </Link>
+            )}
+          </div>
+        </div>
+
+        {/* Search bar — primary interaction, lifted to the top */}
+        <div className="mb-6">
+          <SmartSearchBar devices={devices} />
+        </div>
       </div>
 
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-12">
-        <div className="mb-3 flex justify-end min-h-[28px]">
-          <FetchingBadge isFetching={isFetching} isPending={isLoading} />
-        </div>
         {isLoading ? (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
             <DeviceCategorySkeleton />

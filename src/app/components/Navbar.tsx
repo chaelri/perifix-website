@@ -105,10 +105,15 @@ export function Navbar() {
             {/* Auth Button */}
             {user ? (
               <div className="flex items-center gap-2 ml-2 pl-2 border-l border-gray-200">
-                <div className="flex items-center gap-2 px-3 py-1 bg-blue-50 rounded-lg">
+                <button
+                  type="button"
+                  onClick={() => navigate("/settings")}
+                  className="flex items-center gap-2 px-3 py-1 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
+                  title="Account settings"
+                >
                   <User className="w-4 h-4 text-blue-600" />
                   <span className="text-sm text-blue-600">{user.name}</span>
-                </div>
+                </button>
                 <Button
                   variant="outline"
                   size="sm"
@@ -158,7 +163,11 @@ export function Navbar() {
                   </div>
 
                   {user ? (
-                    <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-blue-50 to-white p-3.5 shadow-sm">
+                    <button
+                      type="button"
+                      onClick={() => goAndClose("/settings")}
+                      className="w-full text-left rounded-2xl border border-slate-200 bg-gradient-to-br from-blue-50 to-white p-3.5 shadow-sm hover:border-blue-300 transition-colors"
+                    >
                       <div className="flex items-center gap-3">
                         <div className="relative w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 text-white flex items-center justify-center text-sm font-semibold shadow-sm">
                           {(user.name || user.email || "?")
@@ -185,7 +194,7 @@ export function Navbar() {
                           </span>
                         )}
                       </div>
-                    </div>
+                    </button>
                   ) : (
                     <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-3.5 text-center text-sm text-slate-500">
                       Sign in to access troubleshooting

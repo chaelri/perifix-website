@@ -23,6 +23,8 @@ import { UserAccounts } from "./pages/UserAccounts";
 import { AnalyticsDashboard } from "./pages/AnalyticsDashboard";
 import { SupportRequests } from "./pages/SupportRequests";
 import { ResetPassword } from "./pages/ResetPassword";
+import { Settings } from "./pages/Settings";
+import { TroubleshootingAdmin } from "./pages/TroubleshootingAdmin";
 import { Toaster } from "./components/ui/sonner";
 import { AuthProvider } from "./contexts/AuthContext";
 import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
@@ -120,6 +122,22 @@ function AppContent() {
             element={
               <ProtectedRoute>
                 <SupportRequests />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/settings"
+            element={
+              <ProtectedRoute>
+                <Settings />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/troubleshooting"
+            element={
+              <ProtectedRoute>
+                <TroubleshootingAdmin />
               </ProtectedRoute>
             }
           />

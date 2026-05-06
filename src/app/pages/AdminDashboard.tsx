@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "../components/ui/button";
 import { Card } from "../components/ui/card";
-import { Shield, Users, UserPlus, BarChart3, AlertCircle, ChevronRight } from "lucide-react";
+import { Shield, Users, UserPlus, BarChart3, AlertCircle, ChevronRight, Wrench } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
 import { supabase } from "../utils/supabase/client";
 import { useQuery } from "@tanstack/react-query";
@@ -181,6 +181,14 @@ export function AdminDashboard() {
             iconBg="bg-purple-100"
             iconFg="text-purple-600"
             onClick={() => navigate("/analytics")}
+          />
+          <ActionCard
+            title="Troubleshooting CMS"
+            description="Manage devices, problems, and step-by-step guides"
+            icon={Wrench}
+            iconBg="bg-amber-100"
+            iconFg="text-amber-600"
+            onClick={() => navigate("/admin/troubleshooting")}
           />
         </div>
 

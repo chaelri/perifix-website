@@ -9,10 +9,15 @@ import {
   Search as SearchIcon,
   Eye,
   Trash2,
-  Flag
+  Flag,
+  Pencil,
+  Save,
+  X as XIcon,
 } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
+import { Label } from "../components/ui/label";
+import { Textarea } from "../components/ui/textarea";
 import { useAuth } from "../contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -50,6 +55,15 @@ export function SupportRequests() {
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [selectedRequest, setSelectedRequest] = useState<SupportRequest | null>(null);
   const [viewModalOpen, setViewModalOpen] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [editForm, setEditForm] = useState({
+    name: "",
+    email: "",
+    device: "",
+    issue: "",
+    description: "",
+  });
+  const [savingEdit, setSavingEdit] = useState(false);
 
   const { data: requests = [], isPending, isFetching } = useQuery({
     queryKey: ["support_requests"],
@@ -147,7 +161,46 @@ export function SupportRequests() {
 
   const viewRequest = (request: SupportRequest) => {
     setSelectedRequest(request);
+    setEditing(false);
     setViewModalOpen(true);
+  };
+
+  const startEdit = (r: SupportRequest) => {
+    setEditForm({
+      name: r.name,
+      email: r.email,
+      device: r.device ?? "",
+      issue: r.issue ?? "",
+      description: r.description,
+    });
+    setEditing(true);
+  };
+
+  const saveEdit = async () => {
+    if (!selectedRequest) return;
+    setSavingEdit(true);
+    const patch = {
+      name: editForm.name.trim(),
+      email: editForm.email.trim(),
+      device: editForm.device.trim() || null,
+      issue: editForm.issue.trim() || null,
+      description: editForm.description.trim(),
+    };
+    const { error } = await supabase
+      .from("support_requests")
+      .update(patch)
+      .eq("id", selectedRequest.id);
+    setSavingEdit(false);
+    if (error) {
+      toast.error(error.message || "Failed to save changes.");
+      return;
+    }
+    queryClient.setQueryData<SupportRequest[]>(["support_requests"], (prev) =>
+      (prev ?? []).map((r) => (r.id === selectedRequest.id ? { ...r, ...patch } : r)),
+    );
+    setSelectedRequest((prev) => (prev ? { ...prev, ...patch } : prev));
+    setEditing(false);
+    toast.success("Request updated.");
   };
 
   const formatDate = (timestamp: string) => {
@@ -424,40 +477,119 @@ export function SupportRequests() {
               {/* Content */}
               <div className="flex-1 overflow-y-auto p-6">
                 <div className="space-y-6">
+                  {/* Edit toggle */}
+                  <div className="flex items-center justify-end gap-2">
+                    {editing ? (
+                      <>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setEditing(false)}
+                          disabled={savingEdit}
+                        >
+                          <XIcon className="w-4 h-4 mr-1" />
+                          Cancel
+                        </Button>
+                        <Button
+                          size="sm"
+                          className="bg-blue-600 hover:bg-blue-700 text-white"
+                          onClick={saveEdit}
+                          disabled={savingEdit}
+                        >
+                          <Save className="w-4 h-4 mr-1" />
+                          {savingEdit ? "Saving…" : "Save"}
+                        </Button>
+                      </>
+                    ) : (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => startEdit(selectedRequest)}
+                        className="border-blue-300 text-blue-700"
+                      >
+                        <Pencil className="w-4 h-4 mr-1" />
+                        Edit fields
+                      </Button>
+                    )}
+                  </div>
+
                   {/* User Info */}
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <p className="text-sm font-medium text-gray-600 mb-1">Name</p>
-                      <p className="text-lg text-gray-900">{selectedRequest.name}</p>
+                      <Label className="text-sm font-medium text-gray-600">Name</Label>
+                      {editing ? (
+                        <Input
+                          className="mt-1"
+                          value={editForm.name}
+                          onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                        />
+                      ) : (
+                        <p className="text-lg text-gray-900 mt-1">{selectedRequest.name}</p>
+                      )}
                     </div>
                     <div>
-                      <p className="text-sm font-medium text-gray-600 mb-1">Email</p>
-                      <p className="text-lg text-gray-900">{selectedRequest.email}</p>
+                      <Label className="text-sm font-medium text-gray-600">Email</Label>
+                      {editing ? (
+                        <Input
+                          type="email"
+                          className="mt-1"
+                          value={editForm.email}
+                          onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
+                        />
+                      ) : (
+                        <p className="text-lg text-gray-900 mt-1">{selectedRequest.email}</p>
+                      )}
                     </div>
                   </div>
 
                   {/* Device & Issue */}
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <p className="text-sm font-medium text-gray-600 mb-1">Device</p>
-                      <p className="text-lg text-gray-900">{selectedRequest.device}</p>
+                      <Label className="text-sm font-medium text-gray-600">Device</Label>
+                      {editing ? (
+                        <Input
+                          className="mt-1"
+                          value={editForm.device}
+                          onChange={(e) => setEditForm({ ...editForm, device: e.target.value })}
+                        />
+                      ) : (
+                        <p className="text-lg text-gray-900 mt-1">{selectedRequest.device}</p>
+                      )}
                     </div>
                     <div>
-                      <p className="text-sm font-medium text-gray-600 mb-1">Issue Type</p>
-                      <p className="text-lg text-gray-900">{selectedRequest.issue}</p>
+                      <Label className="text-sm font-medium text-gray-600">Issue Type</Label>
+                      {editing ? (
+                        <Input
+                          className="mt-1"
+                          value={editForm.issue}
+                          onChange={(e) => setEditForm({ ...editForm, issue: e.target.value })}
+                        />
+                      ) : (
+                        <p className="text-lg text-gray-900 mt-1">{selectedRequest.issue}</p>
+                      )}
                     </div>
                   </div>
 
                   {/* Description */}
                   <div>
-                    <p className="text-sm font-medium text-gray-600 mb-2">
+                    <Label className="text-sm font-medium text-gray-600 mb-2 block">
                       Problem Description
-                    </p>
-                    <div className="bg-gray-50 rounded-xl p-4 border-2 border-gray-200">
-                      <p className="text-gray-800 leading-relaxed">
-                        {selectedRequest.description}
-                      </p>
-                    </div>
+                    </Label>
+                    {editing ? (
+                      <Textarea
+                        rows={5}
+                        value={editForm.description}
+                        onChange={(e) =>
+                          setEditForm({ ...editForm, description: e.target.value })
+                        }
+                      />
+                    ) : (
+                      <div className="bg-gray-50 rounded-xl p-4 border-2 border-gray-200">
+                        <p className="text-gray-800 leading-relaxed">
+                          {selectedRequest.description}
+                        </p>
+                      </div>
+                    )}
                   </div>
 
                   {/* Status Update */}
