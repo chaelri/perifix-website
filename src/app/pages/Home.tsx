@@ -222,54 +222,67 @@ export function Home() {
                 className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-32 h-32 text-white/5"
               />
 
-              {/* Tilted mock card — cycles through devices every ~4.5s */}
-              <div className="absolute inset-0 flex items-center justify-center">
-                <AnimatePresence mode="wait">
-                  <motion.div
-                    key={heroDevice.slug}
-                    initial={{ opacity: 0, y: 16, rotate: -8, scale: 0.96 }}
-                    animate={{ opacity: 1, y: 0, rotate: -3, scale: 1 }}
-                    exit={{ opacity: 0, y: -16, rotate: 2, scale: 0.96 }}
-                    transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-                    className="hover:rotate-0 transition-transform duration-500 w-[92%] max-w-md bg-white text-gray-900 rounded-2xl shadow-2xl shadow-blue-900/40 ring-1 ring-white/10 overflow-hidden"
-                  >
-                    {/* Card header */}
-                    <div className="flex items-center gap-3 p-5 border-b border-gray-100">
-                      <div
-                        className={`w-11 h-11 ${heroDevice.iconBg} rounded-xl flex items-center justify-center shadow-sm`}
-                      >
-                        <heroDevice.Icon className="w-5 h-5 text-white" />
-                      </div>
-                      <div>
-                        <div className="font-medium leading-tight">{heroDevice.name}</div>
-                        <div className="text-xs text-gray-500">
-                          {heroDevice.problems.length} problems
-                          <span className="mx-1.5 text-gray-300">·</span>
-                          <span className="uppercase tracking-wider text-[10px] font-semibold text-amber-600">
-                            {heroDevice.category}
-                          </span>
+              {/* Stacked card deck — next card peeks behind, slides up to take
+                  the front, while the old front fades out and a new back fades in. */}
+              <div className="absolute inset-0 flex items-center justify-center [perspective:1200px]">
+                <AnimatePresence initial={false}>
+                  {[
+                    { dev: heroDevice, role: "front" as const },
+                    {
+                      dev: HERO_DEVICES[(heroDeviceIdx + 1) % HERO_DEVICES.length],
+                      role: "back" as const,
+                    },
+                  ].map(({ dev, role }) => (
+                    <motion.div
+                      key={dev.slug}
+                      initial={{ opacity: 0, y: 70, scale: 0.85, rotate: -10, zIndex: 1 }}
+                      animate={
+                        role === "front"
+                          ? { opacity: 1, y: 0, scale: 1, rotate: -3, zIndex: 2 }
+                          : { opacity: 0.55, y: 28, scale: 0.93, rotate: -7, zIndex: 1 }
+                      }
+                      exit={{ opacity: 0, y: -32, scale: 1.04, rotate: 1, zIndex: 3 }}
+                      transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+                      className="absolute w-[92%] max-w-md bg-white text-gray-900 rounded-2xl shadow-2xl shadow-blue-900/40 ring-1 ring-white/10 overflow-hidden"
+                    >
+                      {/* Card header */}
+                      <div className="flex items-center gap-3 p-5 border-b border-gray-100">
+                        <div
+                          className={`w-11 h-11 ${dev.iconBg} rounded-xl flex items-center justify-center shadow-sm`}
+                        >
+                          <dev.Icon className="w-5 h-5 text-white" />
+                        </div>
+                        <div>
+                          <div className="font-medium leading-tight">{dev.name}</div>
+                          <div className="text-xs text-gray-500">
+                            {dev.problems.length} problems
+                            <span className="mx-1.5 text-gray-300">·</span>
+                            <span className="uppercase tracking-wider text-[10px] font-semibold text-amber-600">
+                              {dev.category}
+                            </span>
+                          </div>
                         </div>
                       </div>
-                    </div>
 
-                    {/* Problem rows */}
-                    <ul className="divide-y divide-gray-100">
-                      {heroDevice.problems.map((p) => (
-                        <li key={p.title} className="p-4 flex items-center gap-3">
-                          <div className="flex-1 min-w-0">
-                            <span
-                              className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase border ${SEVERITY_STYLE[p.severity]}`}
-                            >
-                              {p.severity}
-                            </span>
-                            <div className="font-medium mt-1.5">{p.title}</div>
-                            <div className="text-xs text-gray-500 mt-0.5">{p.steps}</div>
-                          </div>
-                          <ChevronRight className="w-4 h-4 text-gray-400 shrink-0" />
-                        </li>
-                      ))}
-                    </ul>
-                  </motion.div>
+                      {/* Problem rows */}
+                      <ul className="divide-y divide-gray-100">
+                        {dev.problems.map((p) => (
+                          <li key={p.title} className="p-4 flex items-center gap-3">
+                            <div className="flex-1 min-w-0">
+                              <span
+                                className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase border ${SEVERITY_STYLE[p.severity]}`}
+                              >
+                                {p.severity}
+                              </span>
+                              <div className="font-medium mt-1.5">{p.title}</div>
+                              <div className="text-xs text-gray-500 mt-0.5">{p.steps}</div>
+                            </div>
+                            <ChevronRight className="w-4 h-4 text-gray-400 shrink-0" />
+                          </li>
+                        ))}
+                      </ul>
+                    </motion.div>
+                  ))}
                 </AnimatePresence>
               </div>
             </div>
