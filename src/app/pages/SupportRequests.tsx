@@ -13,10 +13,13 @@ import {
   Pencil,
   Save,
   X as XIcon,
+  MessageCircle,
+  Send,
 } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
+import { Switch } from "../components/ui/switch";
 import { Textarea } from "../components/ui/textarea";
 import { useAuth } from "../contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
@@ -110,7 +113,7 @@ function ThreadView({
     );
   }
   return (
-    <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+    <div className="space-y-2 overflow-y-auto pr-1 flex-1 min-h-0">
       {messages.map((m) => {
         const isMe = adminUid && m.by_uid === adminUid;
         const isAdmin = m.by_role === "admin";
@@ -634,7 +637,7 @@ export function SupportRequests() {
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
               transition={{ type: "spring", duration: 0.5 }}
-              className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-3xl bg-white rounded-3xl shadow-2xl z-[101] overflow-hidden max-h-[90vh] flex flex-col mx-4"
+              className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-5xl bg-white rounded-3xl shadow-2xl z-[101] overflow-hidden max-h-[90vh] flex flex-col mx-4"
             >
               {/* Header */}
               <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-5 flex items-center justify-between">
@@ -654,9 +657,13 @@ export function SupportRequests() {
                 </Button>
               </div>
 
-              {/* Content */}
-              <div className="flex-1 overflow-y-auto p-6">
-                <div className="space-y-6">
+              {/* Content — two columns on lg+, single column on smaller screens.
+                  Each column scrolls independently so the conversation is
+                  visible without scrolling the whole modal. */}
+              <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-0 lg:divide-x lg:divide-gray-200 min-h-0">
+                {/* Left column — ticket details */}
+                <div className="overflow-y-auto p-6">
+                  <div className="space-y-6">
                   {/* Edit toggle */}
                   <div className="flex items-center justify-end gap-2">
                     {editing ? (
@@ -826,15 +833,52 @@ export function SupportRequests() {
                       </Button>
                     </div>
                   </div>
+                  </div>
+                </div>
 
-                  {/* Conversation thread + admin reply composer */}
-                  <div>
-                    <p className="text-sm font-medium text-gray-600 mb-3">Conversation</p>
-                    <ThreadView
-                      messages={threadMessages(selectedRequest)}
-                      adminUid={user?.id}
-                    />
-                    <div className="mt-3 rounded-lg border-2 border-gray-200 bg-white">
+                {/* Right column — conversation thread + composer.
+                    Thread takes remaining height; composer pinned at bottom. */}
+                <div className="flex flex-col p-6 bg-gray-50/40 min-h-0">
+                  <div className="flex items-center gap-2 mb-3">
+                    <MessageCircle className="w-4 h-4 text-blue-700" />
+                    <p className="text-sm font-medium text-gray-700">Conversation</p>
+                  </div>
+                  <ThreadView
+                    messages={threadMessages(selectedRequest)}
+                    adminUid={user?.id}
+                  />
+
+                  {/* Reply composer */}
+                  <div className="mt-3 space-y-2 shrink-0">
+                    <label
+                      htmlFor="ask-toggle"
+                      className={`flex items-center justify-between rounded-lg border px-3 py-2 cursor-pointer transition-colors ${
+                        askForResponse
+                          ? "border-blue-300 bg-blue-50"
+                          : "border-gray-200 bg-white hover:bg-gray-50"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 text-sm">
+                        <MessageCircle
+                          className={`w-4 h-4 ${
+                            askForResponse ? "text-blue-700" : "text-gray-500"
+                          }`}
+                        />
+                        <span
+                          className={
+                            askForResponse ? "text-blue-900" : "text-gray-700"
+                          }
+                        >
+                          Ask user for a response after sending
+                        </span>
+                      </div>
+                      <Switch
+                        id="ask-toggle"
+                        checked={askForResponse}
+                        onCheckedChange={setAskForResponse}
+                      />
+                    </label>
+                    <div className="rounded-lg border-2 border-gray-200 bg-white">
                       <Textarea
                         placeholder="Write a reply to the user…"
                         value={adminReply}
@@ -842,21 +886,14 @@ export function SupportRequests() {
                         rows={3}
                         className="border-0 focus-visible:ring-0 resize-none"
                       />
-                      <div className="flex items-center justify-between p-2 border-t border-gray-100 bg-gray-50/40">
-                        <label className="flex items-center gap-2 text-xs text-gray-600 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={askForResponse}
-                            onChange={(e) => setAskForResponse(e.target.checked)}
-                          />
-                          Ask user for a response after sending
-                        </label>
+                      <div className="flex items-center justify-end p-2 border-t border-gray-100 bg-gray-50/40">
                         <Button
                           size="sm"
                           className="bg-blue-600 hover:bg-blue-700 text-white"
                           onClick={sendAdminReply}
                           disabled={sendingReply || !adminReply.trim()}
                         >
+                          <Send className="w-4 h-4 mr-1.5" />
                           {sendingReply ? "Sending…" : "Send reply"}
                         </Button>
                       </div>
