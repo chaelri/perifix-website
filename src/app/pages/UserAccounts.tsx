@@ -14,6 +14,8 @@ import {
   Copy,
   CheckCircle,
   UserPlus,
+  Trash2,
+  AlertTriangle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "../contexts/AuthContext";
@@ -97,6 +99,8 @@ export function UserAccounts() {
     email: string;
     password: string;
   } | null>(null);
+  const [userToDelete, setUserToDelete] = useState<ProfileRow | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const { data: users = [], isPending, isFetching } = useQuery({
     queryKey: ["profiles"],
@@ -214,6 +218,35 @@ export function UserAccounts() {
     if (recoveryLink) {
       navigator.clipboard.writeText(recoveryLink);
       toast.success("Recovery link copied to clipboard.");
+    }
+  };
+
+  const confirmDelete = async () => {
+    if (!userToDelete) return;
+    setIsDeleting(true);
+    try {
+      const idToken = await auth.currentUser?.getIdToken();
+      const res = await fetch("/api/admin/delete-user", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${idToken ?? ""}`,
+        },
+        body: JSON.stringify({ userId: userToDelete.id }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data?.ok) {
+        toast.error(data?.error || "Failed to delete user.");
+        return;
+      }
+      toast.success("User deleted.");
+      setUserToDelete(null);
+      queryClient.invalidateQueries({ queryKey: ["profiles"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-user-counts"] });
+    } catch (err: any) {
+      toast.error(err?.message ?? "Failed to delete user.");
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -382,6 +415,17 @@ export function UserAccounts() {
                           >
                             <Key className="w-4 h-4 mr-2" />
                             {resettingId === u.id ? "Resetting…" : "Generate Password"}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="border-red-300 text-red-600 hover:bg-red-50 flex-1 lg:flex-none"
+                            onClick={() => setUserToDelete(u)}
+                            disabled={u.id === user?.id}
+                            title={u.id === user?.id ? "You can't delete your own account" : "Delete user"}
+                          >
+                            <Trash2 className="w-4 h-4 mr-2" />
+                            Delete
                           </Button>
                         </>
                       )}
@@ -614,6 +658,60 @@ export function UserAccounts() {
               <CheckCircle className="w-4 h-4 mr-2" />
               Done
             </Button>
+          </div>
+        </div>
+      )}
+
+      {userToDelete && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 px-4">
+          <div className="bg-white rounded-3xl p-8 shadow-2xl border-2 border-red-200 max-w-md w-full">
+            <div className="text-center mb-6">
+              <div className="w-16 h-16 bg-red-600 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-lg">
+                <AlertTriangle className="w-8 h-8 text-white" />
+              </div>
+              <h2 className="mb-1">Delete this user?</h2>
+              <p className="text-sm text-muted-foreground">
+                This permanently removes the account from Firebase Auth and the
+                profile from the database. This cannot be undone.
+              </p>
+            </div>
+            <div className="bg-gray-50 border-2 border-gray-200 rounded-xl p-4 mb-6">
+              <p className="font-medium text-gray-900">
+                {userToDelete.full_name ||
+                  [userToDelete.first_name, userToDelete.last_name]
+                    .filter(Boolean)
+                    .join(" ") ||
+                  "(no name)"}
+              </p>
+              <p className="text-sm text-gray-500 break-all">{userToDelete.email}</p>
+              <span
+                className={`inline-block mt-2 px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase ${
+                  userToDelete.role === "admin"
+                    ? "bg-amber-100 text-amber-700"
+                    : "bg-blue-100 text-blue-700"
+                }`}
+              >
+                {userToDelete.role}
+              </span>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => setUserToDelete(null)}
+                disabled={isDeleting}
+              >
+                Cancel
+              </Button>
+              <Button
+                className="flex-1 bg-red-600 hover:bg-red-700 text-white"
+                onClick={confirmDelete}
+                disabled={isDeleting}
+              >
+                <Trash2 className="w-4 h-4 mr-2" />
+                {isDeleting ? "Deleting…" : "Delete user"}
+              </Button>
+            </div>
           </div>
         </div>
       )}
