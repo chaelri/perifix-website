@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { Card } from "../components/ui/card";
 import { Button } from "../components/ui/button";
-import { User, Shield, Mail } from "lucide-react";
+import { User, Shield, UserPlus } from "lucide-react";
 
 export function LoginSelection() {
   return (
@@ -59,20 +59,21 @@ export function LoginSelection() {
 
         {/* Need an account */}
         <div className="max-w-2xl mx-auto">
-          <Card className="p-6 shadow-sm border border-gray-200 bg-white">
+          <Card className="p-6 shadow-sm border-2 border-green-200 bg-gradient-to-br from-green-50 to-white">
             <div className="flex items-start gap-4">
-              <div className="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center flex-shrink-0">
-                <Mail className="w-6 h-6 text-gray-600" />
+              <div className="w-12 h-12 bg-green-600 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm">
+                <UserPlus className="w-6 h-6 text-white" />
               </div>
               <div className="flex-1">
-                <h3 className="mb-1">Need an account?</h3>
+                <h3 className="mb-1">Don't have an account?</h3>
                 <p className="text-sm text-muted-foreground mb-3">
-                  Accounts are issued by your administrator. Contact them with your name and
-                  email and they'll create one for you.
+                  Sign up as a student in under a minute and start using the troubleshooting
+                  guides immediately.
                 </p>
-                <Link to="/contact">
-                  <Button variant="outline" size="sm">
-                    Contact admin
+                <Link to="/signup">
+                  <Button className="bg-green-600 hover:bg-green-700 text-white">
+                    <UserPlus className="w-4 h-4 mr-2" />
+                    Create student account
                   </Button>
                 </Link>
               </div>

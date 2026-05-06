@@ -16,6 +16,7 @@ import { FAQs } from "./pages/FAQs";
 import { LoginSelection } from "./pages/LoginSelection";
 import { StudentLogin } from "./pages/StudentLogin";
 import { AdminLogin } from "./pages/AdminLogin";
+import { Signup } from "./pages/Signup";
 import { StudentDashboard } from "./pages/StudentDashboard";
 import { AdminDashboard } from "./pages/AdminDashboard";
 import { UserAccounts } from "./pages/UserAccounts";
@@ -74,6 +75,7 @@ function AppContent() {
           <Route path="/faqs" element={<FAQs />} />
           <Route path="/login-selection" element={<LoginSelection />} />
           <Route path="/student-login" element={<StudentLogin />} />
+          <Route path="/signup" element={<Signup />} />
           <Route path="/admin-login" element={<AdminLogin />} />
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route 
