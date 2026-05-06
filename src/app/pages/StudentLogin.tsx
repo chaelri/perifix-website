@@ -10,13 +10,12 @@ import { toast } from "sonner";
 import { LoadingScreen } from "../components/LoadingScreen";
 
 export function StudentLogin() {
-  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const { login } = useAuth();
+  const { signIn } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -25,32 +24,14 @@ export function StudentLogin() {
     setIsLoading(true);
 
     try {
-      // For prototype purposes: accept any credentials for student login
-      // Create a mock user session without calling the backend
-      const mockUser = {
-        id: `student-${Date.now()}`,
-        email: email,
-        name: name,
-        role: "student" as const,
-        loginTime: new Date().toISOString(),
-      };
-      
-      const mockToken = `mock-token-${Date.now()}`;
-      
-      // Store in localStorage directly
-      localStorage.setItem("perifix_token", mockToken);
-      localStorage.setItem("perifix_user", JSON.stringify(mockUser));
-      
-      // Force a page reload to trigger auth context to pick up the stored values
-      toast.success("Login successful!");
-      
-      // Small delay to show the toast, then redirect to Home page
-      setTimeout(() => {
-        window.location.href = "/";
-      }, 500);
+      await signIn(email, password);
+      toast.success("Login successful");
+      navigate("/", { replace: true });
     } catch (err: any) {
-      setError(err.message || "Login failed. Please try again.");
-      toast.error("Login failed");
+      const msg = err?.message ?? "Login failed. Please try again.";
+      setError(msg);
+      toast.error(msg);
+    } finally {
       setIsLoading(false);
     }
   };
@@ -59,7 +40,6 @@ export function StudentLogin() {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-amber-50 py-20">
       {isLoading && <LoadingScreen />}
       <div className="max-w-md mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
         <div className="text-center mb-8">
           <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
             <User className="w-8 h-8 text-white" />
@@ -70,22 +50,8 @@ export function StudentLogin() {
           </p>
         </div>
 
-        {/* Login Card */}
         <Card className="p-8 shadow-xl border-2 border-blue-200">
           <form onSubmit={handleSubmit} className="space-y-6">
-            <div>
-              <Label htmlFor="name">Full Name</Label>
-              <Input
-                id="name"
-                type="text"
-                placeholder="Enter your full name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                required
-                className="mt-2"
-              />
-            </div>
-
             <div>
               <Label htmlFor="email">Email Address</Label>
               <Input
@@ -110,9 +76,6 @@ export function StudentLogin() {
                 required
                 className="mt-2"
               />
-              <p className="text-xs text-muted-foreground mt-2">
-                For prototype: any password works
-              </p>
             </div>
 
             {error && (
@@ -128,16 +91,21 @@ export function StudentLogin() {
               size="lg"
               disabled={isLoading}
             >
-              {isLoading ? "Logging in..." : "Login"}
+              {isLoading ? "Logging in…" : "Login"}
             </Button>
           </form>
         </Card>
 
-        {/* Back Links */}
         <div className="text-center mt-6 space-y-2">
           <Link to="/login-selection" className="block text-blue-600 hover:text-blue-700 hover:underline">
             ← Back to Login Selection
           </Link>
+          <p className="text-sm text-muted-foreground">
+            Don't have an account?{" "}
+            <Link to="/login-selection" className="text-blue-600 hover:underline">
+              Request one
+            </Link>
+          </p>
           <Link to="/" className="block text-sm text-muted-foreground hover:text-foreground hover:underline">
             Back to Home
           </Link>

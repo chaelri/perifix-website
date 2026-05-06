@@ -15,7 +15,7 @@ export function AdminLogin() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const { login } = useAuth();
+  const { signIn, signOut } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -24,47 +24,22 @@ export function AdminLogin() {
     setIsLoading(true);
 
     try {
-      // Check for specific admin credentials
-      const validAdmins = [
-        { email: "admin@perifix.site", password: "perifix123", name: "Admin User" },
-        { email: "kevin@perifix.site", password: "kevinpogi", name: "Kevin Sabinay" }
-      ];
+      const u = await signIn(email, password);
 
-      const adminAccount = validAdmins.find(
-        admin => admin.email === email && admin.password === password
-      );
-
-      if (!adminAccount) {
-        setError("Wrong credentials. Please check your email and password.");
-        setIsLoading(false);
+      if (u.role !== "admin") {
+        await signOut();
+        setError("This account does not have admin access.");
+        toast.error("Not an admin account");
         return;
       }
 
-      // Create admin user session
-      const mockUser = {
-        id: `admin-${Date.now()}`,
-        email: email,
-        name: adminAccount.name,
-        role: "admin" as const,
-        loginTime: new Date().toISOString(),
-      };
-      
-      const mockToken = `mock-token-${Date.now()}`;
-      
-      // Store in localStorage directly
-      localStorage.setItem("perifix_token", mockToken);
-      localStorage.setItem("perifix_user", JSON.stringify(mockUser));
-      
-      // Force a page reload to trigger auth context to pick up the stored values
-      toast.success("Admin login successful!");
-      
-      // Small delay to show the toast, then redirect to Home page
-      setTimeout(() => {
-        window.location.href = "/";
-      }, 500);
+      toast.success("Admin login successful");
+      navigate("/", { replace: true });
     } catch (err: any) {
-      setError(err.message || "Login failed. Please try again.");
-      toast.error("Login failed");
+      const msg = err?.message ?? "Login failed. Please try again.";
+      setError(msg);
+      toast.error(msg);
+    } finally {
       setIsLoading(false);
     }
   };
@@ -73,7 +48,6 @@ export function AdminLogin() {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-amber-50 py-20">
       {isLoading && <LoadingScreen />}
       <div className="max-w-md mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
         <div className="text-center mb-8">
           <div className="w-16 h-16 bg-amber-500 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
             <Shield className="w-8 h-8 text-white" />
@@ -84,21 +58,6 @@ export function AdminLogin() {
           </p>
         </div>
 
-        {/* Credentials Info Card */}
-        <Card className="p-4 mb-4 bg-blue-50 border-2 border-blue-200">
-          <div className="flex items-start gap-3">
-            <Shield className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-            <div>
-              <p className="text-sm font-medium text-blue-900 mb-1">Demo Admin Credentials</p>
-              <div className="text-sm text-blue-700 space-y-1">
-                <p><strong>Email:</strong> admin@perifix.site</p>
-                <p><strong>Password:</strong> perifix123</p>
-              </div>
-            </div>
-          </div>
-        </Card>
-
-        {/* Login Card */}
         <Card className="p-8 shadow-xl border-2 border-amber-200">
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
@@ -119,7 +78,7 @@ export function AdminLogin() {
               <Input
                 id="password"
                 type="password"
-                placeholder="perifix123"
+                placeholder="Enter your password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
@@ -140,12 +99,11 @@ export function AdminLogin() {
               size="lg"
               disabled={isLoading}
             >
-              Log in
+              {isLoading ? "Logging in…" : "Log in"}
             </Button>
           </form>
         </Card>
 
-        {/* Back Links */}
         <div className="text-center mt-6 space-y-2">
           <Link to="/login-selection" className="block text-blue-600 hover:text-blue-700 hover:underline">
             ← Back to Login Selection

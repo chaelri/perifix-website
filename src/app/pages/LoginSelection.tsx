@@ -6,6 +6,7 @@ import { Label } from "../components/ui/label";
 import { User, Shield, UserPlus, CheckCircle2, X } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { supabase } from "../utils/supabase/client";
 
 export function LoginSelection() {
   const [firstName, setFirstName] = useState("");
@@ -21,30 +22,28 @@ export function LoginSelection() {
     setIsSubmitting(true);
 
     try {
-      // Store account request in localStorage for prototype
-      const accountRequests = JSON.parse(localStorage.getItem("perifix_account_requests") || "[]");
-      const newRequest = {
-        id: Date.now(),
-        firstName,
-        lastName,
-        email,
-        requestedAt: new Date().toISOString(),
-        status: "pending"
-      };
-      
-      accountRequests.push(newRequest);
-      localStorage.setItem("perifix_account_requests", JSON.stringify(accountRequests));
-      
-      // Store the email and show confirmation modal
+      const { error } = await supabase.from("account_requests").insert({
+        first_name: firstName.trim(),
+        last_name: lastName.trim(),
+        email: email.trim().toLowerCase(),
+      });
+
+      if (error) {
+        if (error.code === "23505") {
+          toast.error("An account with this email has already been requested.");
+        } else {
+          toast.error(error.message || "Failed to submit request. Please try again.");
+        }
+        return;
+      }
+
       setSubmittedEmail(email);
       setShowConfirmation(true);
-      
-      // Reset form
       setFirstName("");
       setLastName("");
       setEmail("");
-    } catch (error) {
-      toast.error("Failed to submit request. Please try again.");
+    } catch (err: any) {
+      toast.error(err?.message ?? "Failed to submit request. Please try again.");
     } finally {
       setIsSubmitting(false);
     }

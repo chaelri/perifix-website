@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Card } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -6,16 +6,56 @@ import { Textarea } from "../components/ui/textarea";
 import { Label } from "../components/ui/label";
 import { Mail, Phone, Facebook, MapPin, Clock } from "lucide-react";
 import { toast } from "sonner";
+import { supabase } from "../utils/supabase/client";
+import { useAuth } from "../contexts/AuthContext";
 
 export function Contact() {
-  // Scroll to top when component mounts
+  const { user } = useAuth();
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [subject, setSubject] = useState("");
+  const [message, setMessage] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, []);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  useEffect(() => {
+    if (user) {
+      setName((prev) => prev || user.name);
+      setEmail((prev) => prev || user.email);
+    }
+  }, [user]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    toast.success("Message sent! We'll get back to you soon.");
+    setIsSubmitting(true);
+    try {
+      const { error } = await supabase.from("support_requests").insert({
+        user_id: user?.id ?? null,
+        name: name.trim(),
+        email: email.trim().toLowerCase(),
+        issue: subject.trim() || null,
+        description: message.trim(),
+        source: "contact",
+      });
+      if (error) {
+        toast.error(error.message || "Failed to send message.");
+        return;
+      }
+      toast.success("Message sent! We'll get back to you soon.");
+      setSubject("");
+      setMessage("");
+      if (!user) {
+        setName("");
+        setEmail("");
+      }
+    } catch (err: any) {
+      toast.error(err?.message ?? "Failed to send message.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -135,6 +175,8 @@ export function Contact() {
                     id="name"
                     type="text"
                     placeholder="Your full name"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
                     required
                     className="mt-2"
                   />
@@ -146,6 +188,8 @@ export function Contact() {
                     id="email"
                     type="email"
                     placeholder="your.email@example.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
                     required
                     className="mt-2"
                   />
@@ -157,6 +201,8 @@ export function Contact() {
                     id="subject"
                     type="text"
                     placeholder="What is this regarding?"
+                    value={subject}
+                    onChange={(e) => setSubject(e.target.value)}
                     required
                     className="mt-2"
                   />
@@ -168,13 +214,20 @@ export function Contact() {
                     id="message"
                     placeholder="Describe your issue or question in detail..."
                     rows={6}
+                    value={message}
+                    onChange={(e) => setMessage(e.target.value)}
                     required
                     className="mt-2"
                   />
                 </div>
 
-                <Button type="submit" size="lg" className="w-full bg-primary hover:bg-primary/90 shadow-md">
-                  Send Message
+                <Button
+                  type="submit"
+                  size="lg"
+                  className="w-full bg-primary hover:bg-primary/90 shadow-md"
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? "Sending…" : "Send Message"}
                 </Button>
               </form>
             </Card>

@@ -4,6 +4,8 @@ import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
+import { supabase } from "../utils/supabase/client";
+import { useAuth } from "../contexts/AuthContext";
 
 interface ContactSupportModalProps {
   isOpen: boolean;
@@ -18,6 +20,7 @@ export function ContactSupportModal({
   deviceName = "",
   problemTitle = "",
 }: ContactSupportModalProps) {
+  const { user } = useAuth();
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -28,56 +31,52 @@ export function ContactSupportModal({
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Update form data when deviceName or problemTitle changes
   useEffect(() => {
     if (isOpen) {
-      setFormData(prev => ({
+      setFormData((prev) => ({
         ...prev,
         device: deviceName || "",
         issue: problemTitle || "",
+        name: prev.name || user?.name || "",
+        email: prev.email || user?.email || "",
       }));
     } else {
-      // Reset only name, email, and description when modal closes
-      setFormData(prev => ({
+      setFormData((prev) => ({
         ...prev,
         name: "",
         email: "",
         description: "",
       }));
     }
-  }, [isOpen, deviceName, problemTitle]);
+  }, [isOpen, deviceName, problemTitle, user]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
-
-    // Store support request in localStorage
-    const requests = JSON.parse(localStorage.getItem("support_requests") || "[]");
-    requests.push({
-      ...formData,
-      timestamp: new Date().toISOString(),
-      status: "pending",
-      id: Date.now().toString(),
-    });
-    localStorage.setItem("support_requests", JSON.stringify(requests));
-
-    setTimeout(() => {
-      setIsSubmitting(false);
+    try {
+      const { error } = await supabase.from("support_requests").insert({
+        user_id: user?.id ?? null,
+        name: formData.name.trim(),
+        email: formData.email.trim().toLowerCase(),
+        device: formData.device.trim() || null,
+        issue: formData.issue.trim() || null,
+        description: formData.description.trim(),
+        source: "troubleshooting",
+      });
+      if (error) {
+        toast.error(error.message || "Failed to submit support request.");
+        return;
+      }
       toast.success("Support request submitted!", {
         description: "Our team will review your request and get back to you soon.",
       });
-
-      // Reset form
-      setFormData({
-        name: "",
-        email: "",
-        device: "",
-        issue: "",
-        description: "",
-      });
-
+      setFormData({ name: "", email: "", device: "", issue: "", description: "" });
       onClose();
-    }, 1000);
+    } catch (err: any) {
+      toast.error(err?.message ?? "Failed to submit support request.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleChange = (

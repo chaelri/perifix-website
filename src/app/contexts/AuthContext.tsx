@@ -1,7 +1,8 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from "react";
-import { projectId, publicAnonKey } from "../utils/supabase/info";
+import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import type { Session } from "@supabase/supabase-js";
+import { supabase } from "../utils/supabase/client";
 
-interface User {
+export interface AuthUser {
   id: string;
   email: string;
   name: string;
@@ -10,105 +11,132 @@ interface User {
 }
 
 interface AuthContextType {
-  user: User | null;
+  user: AuthUser | null;
+  session: Session | null;
   token: string | null;
-  login: (email: string, password: string, role: "student" | "admin", name?: string) => Promise<void>;
+  signIn: (email: string, password: string) => Promise<AuthUser>;
+  signOut: () => Promise<void>;
   logout: () => Promise<void>;
   isLoading: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+async function loadUserFromSession(session: Session): Promise<AuthUser> {
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("id, email, full_name, first_name, last_name, role")
+    .eq("id", session.user.id)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) {
+    throw new Error(
+      "Your account exists but no profile was found. Please contact an admin.",
+    );
+  }
+  return {
+    id: data.id,
+    email: data.email ?? session.user.email ?? "",
+    name:
+      data.full_name ||
+      [data.first_name, data.last_name].filter(Boolean).join(" ").trim() ||
+      session.user.email ||
+      "",
+    role: data.role as "student" | "admin",
+    loginTime: new Date().toISOString(),
+  };
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [token, setToken] = useState<string | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
+  const [user, setUser] = useState<AuthUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  const serverUrl = `https://${projectId}.supabase.co/functions/v1/make-server-f7e00e4c`;
-
   useEffect(() => {
-    // Check for existing session on mount
-    const initializeAuth = () => {
-      try {
-        const storedToken = localStorage.getItem("perifix_token");
-        const storedUser = localStorage.getItem("perifix_user");
+    let mounted = true;
 
-        if (storedToken && storedUser) {
-          setToken(storedToken);
-          setUser(JSON.parse(storedUser));
+    supabase.auth.getSession().then(async ({ data }) => {
+      if (!mounted) return;
+      const sess = data.session;
+      setSession(sess);
+      if (sess) {
+        try {
+          const u = await loadUserFromSession(sess);
+          if (mounted) setUser(u);
+        } catch (err) {
+          console.error("Failed to load profile:", err);
         }
-      } catch (error) {
-        console.error("Error initializing auth:", error);
-        // Clear invalid stored data
-        localStorage.removeItem("perifix_token");
-        localStorage.removeItem("perifix_user");
-      } finally {
-        setIsLoading(false);
       }
-    };
+      if (mounted) setIsLoading(false);
+    });
 
-    initializeAuth();
+    const { data: sub } = supabase.auth.onAuthStateChange(async (_event, sess) => {
+      if (!mounted) return;
+      setSession(sess);
+      if (sess) {
+        try {
+          const u = await loadUserFromSession(sess);
+          if (mounted) setUser(u);
+        } catch (err) {
+          console.error("Failed to load profile:", err);
+          if (mounted) setUser(null);
+        }
+      } else {
+        setUser(null);
+      }
+    });
+
+    return () => {
+      mounted = false;
+      sub.subscription.unsubscribe();
+    };
   }, []);
 
-  const login = async (email: string, password: string, role: "student" | "admin", name?: string) => {
-    try {
-      const response = await fetch(`${serverUrl}/login`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${publicAnonKey}`,
-        },
-        body: JSON.stringify({ email, password, role, name }),
+  const signIn = async (email: string, password: string): Promise<AuthUser> => {
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) throw error;
+    if (!data.session) throw new Error("No session returned from sign-in");
+
+    const u = await loadUserFromSession(data.session);
+    setSession(data.session);
+    setUser(u);
+
+    supabase
+      .from("profiles")
+      .update({ last_login_at: new Date().toISOString() })
+      .eq("id", u.id)
+      .then(({ error: updErr }) => {
+        if (updErr) console.warn("last_login_at update failed:", updErr.message);
       });
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "Login failed");
-      }
-
-      setToken(data.token);
-      setUser(data.user);
-
-      localStorage.setItem("perifix_token", data.token);
-      localStorage.setItem("perifix_user", JSON.stringify(data.user));
-    } catch (error) {
-      console.error("Login error:", error);
-      throw error;
-    }
+    return u;
   };
 
-  const logout = async () => {
-    try {
-      if (token) {
-        await fetch(`${serverUrl}/logout`, {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-      }
-    } catch (error) {
-      console.error("Logout error:", error);
-    } finally {
-      setToken(null);
-      setUser(null);
-      localStorage.removeItem("perifix_token");
-      localStorage.removeItem("perifix_user");
-    }
+  const signOut = async () => {
+    await supabase.auth.signOut();
+    setSession(null);
+    setUser(null);
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, login, logout, isLoading }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        session,
+        token: session?.access_token ?? null,
+        signIn,
+        signOut,
+        logout: signOut,
+        isLoading,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
 }
 
 export function useAuth() {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error("useAuth must be used within an AuthProvider");
-  }
-  return context;
+  const ctx = useContext(AuthContext);
+  if (!ctx) throw new Error("useAuth must be used within an AuthProvider");
+  return ctx;
 }

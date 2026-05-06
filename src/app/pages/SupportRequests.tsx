@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { Card } from "../components/ui/card";
 import {
   Mail,
@@ -17,16 +17,18 @@ import { useAuth } from "../contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "motion/react";
+import { supabase } from "../utils/supabase/client";
 
 interface SupportRequest {
   id: string;
   name: string;
   email: string;
-  device: string;
-  issue: string;
+  device: string | null;
+  issue: string | null;
   description: string;
-  timestamp: string;
+  created_at: string;
   status: "pending" | "resolved" | "priority";
+  source: "contact" | "troubleshooting";
 }
 
 export function SupportRequests() {
@@ -38,21 +40,41 @@ export function SupportRequests() {
   const [selectedRequest, setSelectedRequest] = useState<SupportRequest | null>(null);
   const [viewModalOpen, setViewModalOpen] = useState(false);
 
+  const loadRequests = useCallback(async () => {
+    const { data, error } = await supabase
+      .from("support_requests")
+      .select("id, name, email, device, issue, description, status, source, created_at")
+      .order("created_at", { ascending: false });
+    if (error) {
+      toast.error(error.message || "Failed to load support requests.");
+      return;
+    }
+    setRequests((data ?? []) as SupportRequest[]);
+  }, []);
+
   useEffect(() => {
-    // Redirect if not admin
     if (user?.role !== "admin") {
       navigate("/");
       return;
     }
 
-    // Load support requests from localStorage
-    loadRequests();
-  }, [user, navigate]);
+    void loadRequests();
 
-  const loadRequests = () => {
-    const stored = JSON.parse(localStorage.getItem("support_requests") || "[]");
-    setRequests(stored);
-  };
+    const channel = supabase
+      .channel("support_requests_admin")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "support_requests" },
+        () => {
+          void loadRequests();
+        },
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [user, navigate, loadRequests]);
 
   const filteredRequests = useMemo(() => {
     let filtered = [...requests];
@@ -63,8 +85,8 @@ export function SupportRequests() {
         (r) =>
           r.name.toLowerCase().includes(query) ||
           r.email.toLowerCase().includes(query) ||
-          r.device.toLowerCase().includes(query) ||
-          r.issue.toLowerCase().includes(query) ||
+          (r.device ?? "").toLowerCase().includes(query) ||
+          (r.issue ?? "").toLowerCase().includes(query) ||
           r.description.toLowerCase().includes(query)
       );
     }
@@ -73,10 +95,7 @@ export function SupportRequests() {
       filtered = filtered.filter((r) => r.status === filterStatus);
     }
 
-    // Sort by timestamp (newest first)
-    return filtered.sort(
-      (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-    );
+    return filtered;
   }, [requests, searchQuery, filterStatus]);
 
   const stats = useMemo(() => {
@@ -88,26 +107,34 @@ export function SupportRequests() {
     };
   }, [requests]);
 
-  const updateRequestStatus = (id: string, status: SupportRequest["status"]) => {
-    const updated = requests.map((r) =>
-      r.id === id ? { ...r, status } : r
-    );
-    setRequests(updated);
-    localStorage.setItem("support_requests", JSON.stringify(updated));
+  const updateRequestStatus = async (id: string, status: SupportRequest["status"]) => {
+    const { error } = await supabase
+      .from("support_requests")
+      .update({ status })
+      .eq("id", id);
+    if (error) {
+      toast.error(error.message || "Failed to update status.");
+      return;
+    }
+    setRequests((prev) => prev.map((r) => (r.id === id ? { ...r, status } : r)));
+    setSelectedRequest((prev) => (prev && prev.id === id ? { ...prev, status } : prev));
     toast.success("Request updated", {
       description: `Status changed to ${status}`,
     });
   };
 
-  const deleteRequest = (id: string) => {
-    const updated = requests.filter((r) => r.id !== id);
-    setRequests(updated);
-    localStorage.setItem("support_requests", JSON.stringify(updated));
-    toast.success("Request deleted");
+  const deleteRequest = async (id: string) => {
+    const { error } = await supabase.from("support_requests").delete().eq("id", id);
+    if (error) {
+      toast.error(error.message || "Failed to delete request.");
+      return;
+    }
+    setRequests((prev) => prev.filter((r) => r.id !== id));
     if (selectedRequest?.id === id) {
       setViewModalOpen(false);
       setSelectedRequest(null);
     }
+    toast.success("Request deleted");
   };
 
   const viewRequest = (request: SupportRequest) => {
@@ -285,7 +312,7 @@ export function SupportRequests() {
                           {request.issue}
                         </td>
                         <td className="px-6 py-4 text-sm text-gray-600">
-                          {formatDate(request.timestamp)}
+                          {formatDate(request.created_at)}
                         </td>
                         <td className="px-6 py-4">
                           <span
@@ -359,7 +386,7 @@ export function SupportRequests() {
                 <div>
                   <h2 className="text-white text-2xl">Support Request Details</h2>
                   <p className="text-sm text-blue-100">
-                    Submitted {formatDate(selectedRequest.timestamp)}
+                    Submitted {formatDate(selectedRequest.created_at)}
                   </p>
                 </div>
                 <Button

@@ -1,19 +1,31 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
 import { useAuth } from "../contexts/AuthContext";
-import { UserPlus, ArrowLeft, CheckCircle, XCircle, Clock, Mail, Key, User, Copy, Send } from "lucide-react";
+import { supabase } from "../utils/supabase/client";
+import {
+  UserPlus,
+  ArrowLeft,
+  CheckCircle,
+  XCircle,
+  Clock,
+  Mail,
+  Key,
+  User,
+  Copy,
+  Send,
+} from "lucide-react";
 import { toast } from "sonner";
 
 interface AccountRequest {
   id: number;
-  firstName: string;
-  lastName: string;
+  first_name: string;
+  last_name: string;
   email: string;
-  requestedAt: string;
   status: "pending" | "approved" | "rejected";
+  created_at: string;
 }
 
 interface ApprovalDetails {
@@ -26,34 +38,87 @@ export function AccountsList() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [requests, setRequests] = useState<AccountRequest[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [approvingId, setApprovingId] = useState<number | null>(null);
   const [showApprovalDialog, setShowApprovalDialog] = useState(false);
   const [approvalDetails, setApprovalDetails] = useState<ApprovalDetails | null>(null);
 
+  const loadRequests = useCallback(async () => {
+    setIsLoading(true);
+    const { data, error } = await supabase
+      .from("account_requests")
+      .select("id, first_name, last_name, email, status, created_at")
+      .order("created_at", { ascending: false });
+    if (error) {
+      toast.error(error.message || "Failed to load account requests.");
+      setIsLoading(false);
+      return;
+    }
+    setRequests((data ?? []) as AccountRequest[]);
+    setIsLoading(false);
+  }, []);
+
   useEffect(() => {
-    // Redirect if not admin
     if (user?.role !== "admin") {
       toast.error("Access denied. Admin privileges required.");
       navigate("/");
       return;
     }
+    void loadRequests();
+  }, [user, navigate, loadRequests]);
 
-    // Load account requests from localStorage
-    loadRequests();
-  }, [user, navigate]);
-
-  const loadRequests = () => {
-    const storedRequests = JSON.parse(localStorage.getItem("perifix_account_requests") || "[]");
-    setRequests(storedRequests);
+  const handleApprove = async (request: AccountRequest) => {
+    setApprovingId(request.id);
+    try {
+      const { data, error } = await supabase.functions.invoke("approve-account", {
+        body: { requestId: request.id },
+      });
+      if (error) {
+        toast.error(error.message || "Failed to approve account.");
+        return;
+      }
+      if (!data?.tempPassword) {
+        toast.error(data?.error || "Approval failed — no password returned.");
+        return;
+      }
+      setApprovalDetails({
+        email: data.email,
+        name: data.name,
+        temporaryPassword: data.tempPassword,
+      });
+      setShowApprovalDialog(true);
+      await loadRequests();
+    } catch (err: any) {
+      toast.error(err?.message ?? "Failed to approve account.");
+    } finally {
+      setApprovingId(null);
+    }
   };
 
-  const updateRequestStatus = (id: number, status: "approved" | "rejected") => {
-    const updatedRequests = requests.map((req) =>
-      req.id === id ? { ...req, status } : req
-    );
-    setRequests(updatedRequests);
-    localStorage.setItem("perifix_account_requests", JSON.stringify(updatedRequests));
-    
-    toast.success(`Request ${status === "approved" ? "approved" : "rejected"} successfully!`);
+  const handleReject = async (request: AccountRequest) => {
+    const { error } = await supabase
+      .from("account_requests")
+      .update({ status: "rejected" })
+      .eq("id", request.id);
+    if (error) {
+      toast.error(error.message || "Failed to reject request.");
+      return;
+    }
+    toast.success("Request rejected.");
+    await loadRequests();
+  };
+
+  const handleSendApprovalEmail = () => {
+    if (approvalDetails) {
+      // TODO: replace with real email send (Edge Function + SMTP).
+      toast.success(`Credentials ready to share with ${approvalDetails.email}.`);
+      setShowApprovalDialog(false);
+    }
+  };
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    toast.success("Copied to clipboard!");
   };
 
   const getStatusBadge = (status: string) => {
@@ -95,34 +160,9 @@ export function AccountsList() {
     });
   };
 
-  const handleApprove = (request: AccountRequest) => {
-    const tempPassword = Math.random().toString(36).substring(2, 10) + Math.random().toString(36).substring(2, 10);
-    setApprovalDetails({
-      email: request.email,
-      name: `${request.firstName} ${request.lastName}`,
-      temporaryPassword: tempPassword
-    });
-    setShowApprovalDialog(true);
-    updateRequestStatus(request.id, "approved");
-  };
-
-  const handleSendApprovalEmail = () => {
-    if (approvalDetails) {
-      // Simulate sending an email
-      toast.success(`Credentials sent to ${approvalDetails.email}!`);
-      setShowApprovalDialog(false);
-    }
-  };
-
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
-    toast.success("Copied to clipboard!");
-  };
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-amber-50 py-12">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
         <div className="mb-8">
           <Button
             variant="ghost"
@@ -132,7 +172,7 @@ export function AccountsList() {
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back to Dashboard
           </Button>
-          
+
           <div className="flex items-center gap-4 mb-4">
             <div className="w-16 h-16 bg-green-600 rounded-2xl flex items-center justify-center shadow-lg">
               <UserPlus className="w-8 h-8 text-white" />
@@ -146,7 +186,6 @@ export function AccountsList() {
           </div>
         </div>
 
-        {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
           <Card className="p-4 border-2 border-yellow-200">
             <div className="flex items-center justify-between">
@@ -185,9 +224,12 @@ export function AccountsList() {
           </Card>
         </div>
 
-        {/* Requests List */}
         <Card className="p-6 shadow-xl border-2 border-blue-200">
-          {requests.length === 0 ? (
+          {isLoading ? (
+            <div className="text-center py-12">
+              <p className="text-muted-foreground">Loading requests…</p>
+            </div>
+          ) : requests.length === 0 ? (
             <div className="text-center py-12">
               <UserPlus className="w-12 h-12 text-gray-400 mx-auto mb-4" />
               <p className="text-muted-foreground">No account requests yet</p>
@@ -202,7 +244,7 @@ export function AccountsList() {
                   <div className="flex-1">
                     <div className="flex items-center gap-3 mb-2">
                       <h3 className="text-lg">
-                        {request.firstName} {request.lastName}
+                        {request.first_name} {request.last_name}
                       </h3>
                       {getStatusBadge(request.status)}
                     </div>
@@ -210,7 +252,7 @@ export function AccountsList() {
                       {request.email}
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      Requested on {formatDate(request.requestedAt)}
+                      Requested on {formatDate(request.created_at)}
                     </p>
                   </div>
 
@@ -220,15 +262,16 @@ export function AccountsList() {
                         size="sm"
                         className="bg-green-600 hover:bg-green-700 text-white"
                         onClick={() => handleApprove(request)}
+                        disabled={approvingId === request.id}
                       >
                         <CheckCircle className="w-4 h-4 mr-1" />
-                        Approve
+                        {approvingId === request.id ? "Approving…" : "Approve"}
                       </Button>
                       <Button
                         size="sm"
                         variant="outline"
                         className="border-red-300 text-red-600 hover:bg-red-50"
-                        onClick={() => updateRequestStatus(request.id, "rejected")}
+                        onClick={() => handleReject(request)}
                       >
                         <XCircle className="w-4 h-4 mr-1" />
                         Reject
@@ -241,7 +284,6 @@ export function AccountsList() {
           )}
         </Card>
 
-        {/* Approval Dialog */}
         {showApprovalDialog && approvalDetails && (
           <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 px-4">
             <div className="bg-white rounded-3xl p-8 shadow-2xl border-2 border-green-200 max-w-md w-full animate-in fade-in zoom-in duration-300">
@@ -255,7 +297,6 @@ export function AccountsList() {
                 </p>
               </div>
 
-              {/* Credentials Details */}
               <div className="space-y-4 mb-6">
                 <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-4">
                   <div className="flex items-start gap-3">
@@ -306,7 +347,6 @@ export function AccountsList() {
                 </div>
               </div>
 
-              {/* Action Buttons */}
               <div className="flex gap-3">
                 <Button
                   className="flex-1 bg-green-600 hover:bg-green-700 text-white shadow-lg"
