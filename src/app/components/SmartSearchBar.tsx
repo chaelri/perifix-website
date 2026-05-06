@@ -169,10 +169,12 @@ export function SmartSearchBar({
     setIsOpen(false);
   };
 
-  const highlightText = (text: string, keywords: string[]) => {
-    if (!keywords.length) return text;
+  const highlightText = (
+    text: string,
+    keywords: string[],
+  ): { text: string; highlight: boolean }[] => {
+    if (!keywords.length) return [{ text, highlight: false }];
 
-    let highlightedText = text;
     const parts: { text: string; highlight: boolean }[] = [];
     let currentIndex = 0;
 
