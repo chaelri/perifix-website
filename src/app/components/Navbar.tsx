@@ -70,19 +70,20 @@ export function Navbar() {
           </Link>
 
           {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center gap-1">
+          <div className="hidden lg:flex items-center gap-0.5">
             {navLinks.map((link) => (
               <Button
                 key={link.path}
                 variant={isActive(link.path) ? "default" : "ghost"}
+                size="sm"
                 className={isActive(link.path) ? "bg-primary shadow-sm" : ""}
                 onClick={() => navigate(link.path)}
               >
                 {link.name}
               </Button>
             ))}
-            
-            {/* Admin Links - Only shown for admin users */}
+
+            {/* Admin Links - Only shown for admin users. Icon-only until xl. */}
             {user?.role === "admin" && (
               <>
                 {adminLinks.map((link) => {
@@ -91,11 +92,13 @@ export function Navbar() {
                     <Button
                       key={link.path}
                       variant={isActive(link.path) ? "default" : "ghost"}
+                      size="sm"
+                      title={link.name}
                       className={isActive(link.path) ? "bg-amber-500 hover:bg-amber-600 text-white hover:text-white shadow-sm" : "text-amber-600 hover:bg-amber-100 hover:text-amber-700"}
                       onClick={() => navigate(link.path)}
                     >
-                      <Icon className="w-4 h-4 mr-2" />
-                      {link.name}
+                      <Icon className="w-4 h-4 xl:mr-2" />
+                      <span className="hidden xl:inline">{link.name}</span>
                     </Button>
                   );
                 })}
@@ -146,7 +149,7 @@ export function Navbar() {
           </div>
 
           {/* Mobile Menu */}
-          <div className="md:hidden">
+          <div className="lg:hidden">
             <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
               <SheetTrigger>
                 <div className="p-2 hover:bg-primary/10 rounded-md transition-colors">
