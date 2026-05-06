@@ -10,12 +10,29 @@ import {
   Calendar,
 } from "lucide-react";
 import { Button } from "../components/ui/button";
+import { Calendar as DateCalendar } from "../components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "../components/ui/popover";
 import { useAuth } from "../contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { db } from "../utils/firebase/client";
 import { collection, getDocs, orderBy, query, Timestamp } from "firebase/firestore";
 import { useQuery } from "@tanstack/react-query";
 import { StatRowSkeleton, FetchingBadge } from "../components/skeletons/Skeletons";
+import type { DateRange } from "react-day-picker";
+
+function startOfDay(d: Date): Date {
+  const x = new Date(d);
+  x.setHours(0, 0, 0, 0);
+  return x;
+}
+function endOfDay(d: Date): Date {
+  const x = new Date(d);
+  x.setHours(23, 59, 59, 999);
+  return x;
+}
+function fmtDate(d: Date): string {
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
 
 interface FeedbackRecord {
   id: string;
@@ -68,7 +85,8 @@ export function AnalyticsDashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [selectedDevice, setSelectedDevice] = useState<string>("all");
-  const [timeRange, setTimeRange] = useState<string>("all");
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
+  const [calendarOpen, setCalendarOpen] = useState(false);
 
   useEffect(() => {
     if (user && user.role !== "admin") {
@@ -89,10 +107,13 @@ export function AnalyticsDashboard() {
   const filteredFeedback = useMemo(() => {
     let filtered = [...feedback];
 
-    if (timeRange !== "all") {
-      const days = parseInt(timeRange);
-      const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
-      filtered = filtered.filter((f) => new Date(f.created_at) >= cutoff);
+    if (dateRange?.from) {
+      const fromMs = startOfDay(dateRange.from).getTime();
+      const toMs = endOfDay(dateRange.to ?? dateRange.from).getTime();
+      filtered = filtered.filter((f) => {
+        const t = new Date(f.created_at).getTime();
+        return t >= fromMs && t <= toMs;
+      });
     }
 
     if (selectedDevice !== "all") {
@@ -100,7 +121,7 @@ export function AnalyticsDashboard() {
     }
 
     return filtered;
-  }, [feedback, timeRange, selectedDevice]);
+  }, [feedback, dateRange, selectedDevice]);
 
   const stats = useMemo(() => {
     const total = filteredFeedback.length;
@@ -219,19 +240,77 @@ export function AnalyticsDashboard() {
               <span className="text-sm font-medium text-gray-700">Filters:</span>
             </div>
 
-            <div className="flex items-center gap-2 bg-white rounded-xl border-2 border-gray-200 px-4 py-2">
-              <Calendar className="w-4 h-4 text-gray-500" />
-              <select
-                value={timeRange}
-                onChange={(e) => setTimeRange(e.target.value)}
-                className="text-sm bg-transparent border-none focus:outline-none cursor-pointer"
-              >
-                <option value="all">All Time</option>
-                <option value="7">Last 7 Days</option>
-                <option value="30">Last 30 Days</option>
-                <option value="90">Last 90 Days</option>
-              </select>
-            </div>
+            <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  className="flex items-center gap-2 bg-white rounded-xl border-2 border-gray-200 px-4 py-2 text-sm hover:border-blue-300 transition-colors"
+                >
+                  <Calendar className="w-4 h-4 text-gray-500" />
+                  <span>
+                    {dateRange?.from
+                      ? dateRange.to
+                        ? `${fmtDate(dateRange.from)} – ${fmtDate(dateRange.to)}`
+                        : fmtDate(dateRange.from)
+                      : "All time"}
+                  </span>
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <div className="flex flex-wrap gap-1.5 p-3 border-b border-gray-100">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="text-xs"
+                    onClick={() => {
+                      const to = new Date();
+                      const from = new Date(Date.now() - 6 * 24 * 60 * 60 * 1000);
+                      setDateRange({ from, to });
+                    }}
+                  >
+                    Last 7 days
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="text-xs"
+                    onClick={() => {
+                      const to = new Date();
+                      const from = new Date(Date.now() - 29 * 24 * 60 * 60 * 1000);
+                      setDateRange({ from, to });
+                    }}
+                  >
+                    Last 30 days
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="text-xs"
+                    onClick={() => {
+                      const now = new Date();
+                      const from = new Date(now.getFullYear(), now.getMonth(), 1);
+                      setDateRange({ from, to: now });
+                    }}
+                  >
+                    This month
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="text-xs"
+                    onClick={() => setDateRange(undefined)}
+                  >
+                    All time
+                  </Button>
+                </div>
+                <DateCalendar
+                  mode="range"
+                  numberOfMonths={2}
+                  selected={dateRange}
+                  onSelect={setDateRange}
+                />
+              </PopoverContent>
+            </Popover>
 
             <div className="flex items-center gap-2 bg-white rounded-xl border-2 border-gray-200 px-4 py-2">
               <BarChart3 className="w-4 h-4 text-gray-500" />
