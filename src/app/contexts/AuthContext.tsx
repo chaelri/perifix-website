@@ -23,11 +23,18 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 async function loadUserFromSession(session: Session): Promise<AuthUser> {
-  const { data, error } = await supabase
+  // 10s safety net so we never hang the UI if the network stalls.
+  const query = supabase
     .from("profiles")
     .select("id, email, full_name, first_name, last_name, role")
     .eq("id", session.user.id)
     .maybeSingle();
+
+  const timeout = new Promise<never>((_, reject) =>
+    setTimeout(() => reject(new Error("Profile lookup timed out — check your network or RLS policies.")), 10_000),
+  );
+
+  const { data, error } = await Promise.race([query, timeout]) as Awaited<typeof query>;
   if (error) throw error;
   if (!data) {
     throw new Error(
@@ -93,11 +100,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signIn = async (email: string, password: string): Promise<AuthUser> => {
+    console.debug("[auth] signIn: calling signInWithPassword");
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) throw error;
+    if (error) {
+      console.debug("[auth] signIn: signInWithPassword error", error);
+      throw error;
+    }
     if (!data.session) throw new Error("No session returned from sign-in");
 
+    console.debug("[auth] signIn: loading profile for", data.session.user.id);
     const u = await loadUserFromSession(data.session);
+    console.debug("[auth] signIn: profile loaded", { role: u.role });
+
     setSession(data.session);
     setUser(u);
 
@@ -106,7 +120,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .update({ last_login_at: new Date().toISOString() })
       .eq("id", u.id)
       .then(({ error: updErr }) => {
-        if (updErr) console.warn("last_login_at update failed:", updErr.message);
+        if (updErr) console.warn("[auth] last_login_at update failed:", updErr.message);
       });
 
     return u;
