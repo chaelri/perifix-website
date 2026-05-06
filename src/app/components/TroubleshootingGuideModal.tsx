@@ -1,8 +1,14 @@
-import { X, Maximize2, ThumbsUp, ThumbsDown, CheckCircle } from "lucide-react";
-import { motion, AnimatePresence } from "motion/react";
+import { useEffect, useMemo, useRef, useState, type ComponentType } from "react";
+import {
+  X,
+  ThumbsUp,
+  ThumbsDown,
+  CheckCircle,
+  ChevronRight,
+  HelpCircle,
+} from "lucide-react";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
 import { Button } from "./ui/button";
-import { useState, useEffect } from "react";
 
 interface Step {
   step: number;
@@ -22,174 +28,276 @@ interface TroubleshootingGuideModalProps {
   onClose: () => void;
   problem: Problem;
   deviceName: string;
-  deviceIcon: any;
+  deviceIcon: ComponentType<{ className?: string }>;
   deviceColor: string;
   onFeedback: (helpful: boolean) => void;
   hasFeedback?: boolean;
 }
+
+const SEVERITY = {
+  common: {
+    color: "bg-emerald-100 text-emerald-700 border-emerald-300",
+    label: "Common Issue",
+  },
+  moderate: {
+    color: "bg-orange-100 text-orange-700 border-orange-300",
+    label: "Moderate Issue",
+  },
+  rare: {
+    color: "bg-red-100 text-red-700 border-red-300",
+    label: "Rare Issue",
+  },
+} as const;
 
 export function TroubleshootingGuideModal({
   isOpen,
   onClose,
   problem,
   deviceName,
-  deviceIcon: Icon,
+  deviceIcon,
   deviceColor,
   onFeedback,
   hasFeedback = false,
 }: TroubleshootingGuideModalProps) {
   const [feedbackGiven, setFeedbackGiven] = useState(hasFeedback);
+  const [activeStep, setActiveStep] = useState<number | null>(null);
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  const stepRefs = useRef<Record<number, HTMLDivElement | null>>({});
 
-  // Update local state when prop changes
+  const Icon = (deviceIcon ?? HelpCircle) as ComponentType<{ className?: string }>;
+  const badge = SEVERITY[problem.severity] ?? SEVERITY.common;
+  const steps = useMemo(() => problem.steps ?? [], [problem.steps]);
+
   useEffect(() => {
     setFeedbackGiven(hasFeedback);
   }, [hasFeedback, isOpen]);
 
-  const getSeverityBadge = (severity: string) => {
-    const badges = {
-      common: { color: "bg-green-100 text-green-700 border-green-300", label: "Common Issue" },
-      moderate: { color: "bg-orange-100 text-orange-700 border-orange-300", label: "Moderate Issue" },
-      rare: { color: "bg-red-100 text-red-700 border-red-300", label: "Rare Issue" }
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
     };
-    return badges[severity as keyof typeof badges];
-  };
-
-  const badge = getSeverityBadge(problem.severity);
+    document.addEventListener("keydown", onKey);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    setActiveStep(steps[0]?.step ?? null);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [isOpen, onClose, steps]);
 
   const handleFeedback = (helpful: boolean) => {
     setFeedbackGiven(true);
     onFeedback(helpful);
   };
 
+  const scrollToStep = (stepNum: number) => {
+    const target = stepRefs.current[stepNum];
+    const container = scrollRef.current;
+    if (!target || !container) return;
+    const top = target.offsetTop - container.offsetTop - 16;
+    container.scrollTo({ top, behavior: "smooth" });
+    setActiveStep(stepNum);
+  };
+
+  if (!isOpen) return null;
+
   return (
-    <AnimatePresence>
-      {isOpen && (
-        <>
-          {/* Backdrop */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 lg:p-8">
+      <div
+        onClick={onClose}
+        className="absolute inset-0 bg-slate-900/70 backdrop-blur-sm animate-in fade-in duration-200"
+        aria-hidden="true"
+      />
+
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={`${deviceName} — ${problem.title}`}
+        className="relative w-full max-w-7xl h-full max-h-[92vh] bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-200"
+      >
+        <header className="flex items-center justify-between gap-4 px-6 py-4 border-b border-slate-200 bg-white">
+          <div className="flex items-center gap-3 min-w-0">
+            <div
+              className={`w-11 h-11 ${deviceColor} rounded-xl flex items-center justify-center shadow-sm flex-shrink-0`}
+            >
+              <Icon className="w-5 h-5 text-white" />
+            </div>
+            <div className="min-w-0">
+              <div className="text-xs uppercase tracking-wide text-slate-500">
+                {deviceName}
+              </div>
+              <h2 className="text-lg sm:text-xl text-slate-900 truncate">
+                {problem.title}
+              </h2>
+            </div>
+          </div>
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={onClose}
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100]"
-          />
-
-          {/* Modal */}
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
-            transition={{ type: "spring", duration: 0.5 }}
-            className="fixed inset-4 md:inset-8 lg:inset-16 bg-white rounded-3xl shadow-2xl z-[101] overflow-hidden flex flex-col"
+            aria-label="Close"
+            className="text-slate-500 hover:bg-slate-100 hover:text-slate-900 rounded-xl flex-shrink-0"
           >
-            {/* Header */}
-            <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-5 flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className={`w-14 h-14 ${deviceColor} rounded-xl flex items-center justify-center shadow-lg`}>
-                  <Icon className="w-7 h-7 text-white" />
-                </div>
-                <div>
-                  <div className="text-sm text-blue-100">{deviceName}</div>
-                  <h2 className="text-white text-2xl">{problem.title}</h2>
+            <X className="w-5 h-5" />
+          </Button>
+        </header>
+
+        <div className="grid lg:grid-cols-3 flex-1 overflow-hidden">
+          <aside className="lg:col-span-1 border-b lg:border-b-0 lg:border-r border-slate-200 bg-slate-50 overflow-y-auto">
+            <div className="p-6 space-y-5">
+              <div>
+                <span
+                  className={`inline-block px-3 py-1 rounded-full text-xs font-medium border ${badge.color}`}
+                >
+                  {badge.label}
+                </span>
+              </div>
+
+              <div className="rounded-2xl bg-white border border-slate-200 p-4">
+                <div className="text-xs text-slate-500 mb-1">Device</div>
+                <div className="flex items-center gap-2">
+                  <div
+                    className={`w-7 h-7 ${deviceColor} rounded-lg flex items-center justify-center`}
+                  >
+                    <Icon className="w-4 h-4 text-white" />
+                  </div>
+                  <span className="text-slate-900">{deviceName}</span>
                 </div>
               </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={onClose}
-                className="text-white hover:bg-white/20 rounded-xl"
-              >
-                <X className="w-6 h-6" />
-              </Button>
-            </div>
 
-            {/* Severity Badge */}
-            <div className="px-6 py-4 bg-blue-50 border-b">
-              <span className={`px-4 py-2 rounded-full text-sm border ${badge.color}`}>
-                {badge.label}
-              </span>
-            </div>
+              <div>
+                <div className="text-xs uppercase tracking-wide text-slate-500 mb-2">
+                  Steps ({steps.length})
+                </div>
+                <ol className="space-y-1">
+                  {steps.map((step) => {
+                    const isActive = activeStep === step.step;
+                    return (
+                      <li key={step.step}>
+                        <button
+                          type="button"
+                          onClick={() => scrollToStep(step.step)}
+                          className={`w-full flex items-center gap-3 text-left px-3 py-2 rounded-lg border transition-colors ${
+                            isActive
+                              ? "bg-blue-600 text-white border-blue-600 shadow-sm"
+                              : "bg-white border-slate-200 hover:border-blue-300 hover:bg-blue-50"
+                          }`}
+                        >
+                          <span
+                            className={`w-6 h-6 rounded-full flex items-center justify-center text-xs flex-shrink-0 ${
+                              isActive
+                                ? "bg-white/20 text-white"
+                                : "bg-blue-100 text-blue-700"
+                            }`}
+                          >
+                            {step.step}
+                          </span>
+                          <span
+                            className={`text-sm truncate ${
+                              isActive ? "text-white" : "text-slate-700"
+                            }`}
+                          >
+                            {step.title}
+                          </span>
+                          <ChevronRight
+                            className={`w-4 h-4 ml-auto flex-shrink-0 ${
+                              isActive ? "text-white" : "text-slate-400"
+                            }`}
+                          />
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ol>
+              </div>
 
-            {/* Content - Scrollable */}
-            <div className="flex-1 overflow-y-auto px-6 py-8">
-              <div className="max-w-4xl mx-auto">
-                <h3 className="text-2xl mb-6 text-gray-800">Step-by-Step Guide</h3>
-                <div className="space-y-6">
-                  {problem.steps.map((step) => (
-                    <motion.div
-                      key={step.step}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: step.step * 0.1 }}
-                      className="bg-gradient-to-br from-blue-50 to-white rounded-2xl border-2 border-blue-100 p-6 shadow-sm hover:shadow-md transition-shadow"
+              <div className="rounded-2xl border-2 border-blue-100 bg-gradient-to-br from-amber-50 to-blue-50 p-4">
+                <h3 className="text-sm text-slate-900 mb-3 font-medium">
+                  Did this guide help?
+                </h3>
+                {!feedbackGiven ? (
+                  <div className="flex flex-col gap-2">
+                    <Button
+                      onClick={() => handleFeedback(true)}
+                      className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
                     >
-                      <div className="flex gap-6">
-                        {/* Step Number */}
-                        <div className="flex-shrink-0">
-                          <div className="w-16 h-16 bg-gradient-to-br from-blue-600 to-blue-700 rounded-2xl flex items-center justify-center shadow-lg">
-                            <span className="text-white text-2xl">{step.step}</span>
-                          </div>
-                        </div>
-
-                        {/* Content */}
-                        <div className="flex-1">
-                          <h4 className="text-xl mb-3 text-gray-900">{step.title}</h4>
-                          <p className="text-lg text-gray-600 mb-4 leading-relaxed">
-                            {step.description}
-                          </p>
-
-                          {/* Image */}
-                          <div className="rounded-xl overflow-hidden border-2 border-gray-200 shadow-md">
-                            <ImageWithFallback
-                              src={step.image}
-                              alt={step.title}
-                              className="w-full h-64 object-cover"
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    </motion.div>
-                  ))}
-                </div>
-
-                {/* Feedback Section */}
-                <div className="mt-12 p-8 bg-gradient-to-br from-amber-50 to-blue-50 rounded-2xl border-2 border-blue-200">
-                  <h3 className="text-2xl mb-4 text-center text-gray-900">Did this guide help you?</h3>
-
-                  {!feedbackGiven ? (
-                    <div className="flex gap-4 justify-center">
-                      <Button
-                        size="lg"
-                        onClick={() => handleFeedback(true)}
-                        className="bg-green-600 hover:bg-green-700 text-white px-8 py-6 text-lg rounded-xl shadow-lg hover:shadow-xl transition-all"
-                      >
-                        <ThumbsUp className="w-6 h-6 mr-3" />
-                        Yes, it helped!
-                      </Button>
-                      <Button
-                        size="lg"
-                        variant="outline"
-                        onClick={() => handleFeedback(false)}
-                        className="border-2 border-red-300 text-red-700 hover:bg-red-100 px-8 py-6 text-lg rounded-xl shadow-lg hover:shadow-xl transition-all"
-                      >
-                        <ThumbsDown className="w-6 h-6 mr-3" />
-                        No, I need help
-                      </Button>
-                    </div>
-                  ) : (
-                    <div className="text-center">
-                      <div className="inline-flex items-center gap-2 bg-green-50 text-green-700 px-6 py-3 rounded-xl border-2 border-green-200">
-                        <CheckCircle className="w-6 h-6" />
-                        <span className="text-lg font-medium">Thank you for your feedback!</span>
-                      </div>
-                    </div>
-                  )}
-                </div>
+                      <ThumbsUp className="w-4 h-4 mr-2" />
+                      Yes, it helped
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => handleFeedback(false)}
+                      className="w-full border-2 border-red-300 text-red-700 hover:bg-red-100"
+                    >
+                      <ThumbsDown className="w-4 h-4 mr-2" />
+                      No, I need help
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700">
+                    <CheckCircle className="w-4 h-4 flex-shrink-0" />
+                    <span className="text-sm">Thanks for the feedback!</span>
+                  </div>
+                )}
               </div>
             </div>
-          </motion.div>
-        </>
-      )}
-    </AnimatePresence>
+          </aside>
+
+          <div
+            ref={scrollRef}
+            className="lg:col-span-2 overflow-y-auto bg-white"
+          >
+            <div className="px-6 py-8 max-w-3xl mx-auto">
+              <h3 className="text-xl text-slate-900 mb-1">
+                Step-by-Step Guide
+              </h3>
+              <p className="text-sm text-slate-500 mb-6">
+                Follow these steps in order to resolve the issue.
+              </p>
+
+              <div className="space-y-5">
+                {steps.map((step) => (
+                  <div
+                    key={step.step}
+                    ref={(el) => {
+                      stepRefs.current[step.step] = el;
+                    }}
+                    className="rounded-2xl border-2 border-blue-100 bg-gradient-to-br from-blue-50/50 to-white p-5 hover:border-blue-200 transition-colors"
+                  >
+                    <div className="flex items-start gap-4 mb-4">
+                      <div className="w-11 h-11 bg-gradient-to-br from-blue-600 to-blue-700 rounded-xl flex items-center justify-center shadow-sm flex-shrink-0">
+                        <span className="text-white font-medium">
+                          {step.step}
+                        </span>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h4 className="text-base sm:text-lg text-slate-900 mb-1">
+                          {step.title}
+                        </h4>
+                        <p className="text-sm sm:text-base text-slate-600 leading-relaxed">
+                          {step.description}
+                        </p>
+                      </div>
+                    </div>
+
+                    {step.image ? (
+                      <div className="rounded-xl overflow-hidden border border-slate-200 bg-slate-50">
+                        <ImageWithFallback
+                          src={step.image}
+                          alt={step.title}
+                          className="w-full max-h-72 object-cover"
+                        />
+                      </div>
+                    ) : null}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }

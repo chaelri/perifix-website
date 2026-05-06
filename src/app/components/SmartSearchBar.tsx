@@ -1,7 +1,7 @@
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, type ComponentType } from "react";
 import { useNavigate } from "react-router-dom";
 import { Input } from "./ui/input";
-import { 
+import {
   Search as SearchIcon,
   Mouse,
   Keyboard,
@@ -14,10 +14,26 @@ import {
   Projector,
   ChevronRight,
   AlertCircle,
-  Star
+  HelpCircle,
+  Star,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { Badge } from "./ui/badge";
+
+const ICONS: Record<string, ComponentType<{ className?: string }>> = {
+  Keyboard,
+  Mouse,
+  Camera,
+  Usb,
+  Cable,
+  Monitor,
+  Printer,
+  Volume2,
+  Projector,
+};
+
+const resolveIcon = (name: string): ComponentType<{ className?: string }> =>
+  ICONS[name] ?? HelpCircle;
 
 interface Step {
   step: number;
@@ -34,7 +50,7 @@ interface Problem {
 
 interface Device {
   name: string;
-  icon: any;
+  iconName: string;
   slug: string;
   color: string;
   problems: Problem[];
@@ -45,7 +61,7 @@ interface SearchResult {
   type: "device" | "problem" | "guide";
   deviceName: string;
   deviceSlug: string;
-  deviceIcon: any;
+  deviceIconName: string;
   deviceColor: string;
   deviceCategory: "input" | "output";
   problemTitle?: string;
@@ -97,7 +113,7 @@ export function SmartSearchBar({
           type: "device",
           deviceName: device.name,
           deviceSlug: device.slug,
-          deviceIcon: device.icon,
+          deviceIconName: device.iconName,
           deviceColor: device.color,
           deviceCategory: device.category,
           matchedKeywords: keywords
@@ -117,7 +133,7 @@ export function SmartSearchBar({
             type: "problem",
             deviceName: device.name,
             deviceSlug: device.slug,
-            deviceIcon: device.icon,
+            deviceIconName: device.iconName,
             deviceColor: device.color,
             deviceCategory: device.category,
             problemTitle: problem.title,
@@ -251,7 +267,7 @@ export function SmartSearchBar({
 
                       {/* Results for this category */}
                       {categoryResults.map((result, index) => {
-                        const Icon = result.deviceIcon;
+                        const Icon = resolveIcon(result.deviceIconName);
                         const globalIndex = searchResults.indexOf(result);
                         const isHovered = hoveredIndex === globalIndex;
 

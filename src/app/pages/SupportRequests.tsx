@@ -194,7 +194,7 @@ export function SupportRequests() {
                 Manage and respond to user support tickets
               </p>
             </div>
-            {isFetching && !isPending && <FetchingBadge />}
+            <FetchingBadge isFetching={isFetching} isPending={isPending} />
           </div>
         </div>
 

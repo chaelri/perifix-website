@@ -1,4 +1,10 @@
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { useEffect, useLayoutEffect } from "react";
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  useLocation,
+} from "react-router-dom";
 import { Navbar } from "./components/Navbar";
 import { Footer } from "./components/Footer";
 import { ProtectedRoute } from "./components/ProtectedRoute";
@@ -22,9 +28,34 @@ import { AuthProvider } from "./contexts/AuthContext";
 import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
 import { queryClient, persister } from "./lib/queryClient";
 
+function ScrollToTop() {
+  const { pathname, hash } = useLocation();
+
+  // Browsers default to "auto" for SPA navigations — restore previous scroll.
+  // Force "manual" so each route change starts at the top instead of the
+  // user's last scroll position on that page.
+  useEffect(() => {
+    if ("scrollRestoration" in window.history) {
+      window.history.scrollRestoration = "manual";
+    }
+  }, []);
+
+  // useLayoutEffect runs synchronously after DOM mutation but BEFORE paint, so
+  // the new page never flashes at the old scroll offset.
+  useLayoutEffect(() => {
+    if (hash) return; // let hash links jump to their anchor instead
+    window.scrollTo(0, 0);
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
+  }, [pathname, hash]);
+
+  return null;
+}
+
 function AppContent() {
   return (
     <div className="min-h-screen flex flex-col">
+      <ScrollToTop />
       <Navbar />
       <main className="flex-grow">
         <Routes>
@@ -107,7 +138,10 @@ export default function App() {
       persistOptions={{
         persister: persister!,
         maxAge: 24 * 60 * 60 * 1000,
-        buster: "v1",
+        // Bump buster to invalidate cache caches that stored non-serializable
+        // lucide forwardRef objects as `{}` — those cause React error #130 on
+        // re-render. The new shape stores iconName strings instead.
+        buster: "v2-iconname",
       }}
     >
       <AuthProvider>

@@ -169,16 +169,16 @@ export function UserAccounts() {
 
           <div className="flex items-center justify-between gap-3">
             <div className="relative max-w-md flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-blue-500 pointer-events-none" />
               <Input
                 type="text"
                 placeholder="Search by name or email..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10"
+                className="pl-12 h-12 text-base bg-white border-2 border-blue-200 shadow-sm rounded-xl focus-visible:border-blue-500 focus-visible:ring-blue-200 placeholder:text-gray-400"
               />
             </div>
-            {isFetching && !isPending && <FetchingBadge />}
+            <FetchingBadge isFetching={isFetching} isPending={isPending} />
           </div>
         </div>
 

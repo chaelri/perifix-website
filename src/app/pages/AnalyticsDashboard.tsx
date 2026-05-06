@@ -202,11 +202,9 @@ export function AnalyticsDashboard() {
           </div>
         </div>
 
-        {isFetching && !isPending && (
-          <div className="mb-3 flex justify-end">
-            <FetchingBadge />
-          </div>
-        )}
+        <div className="mb-3 flex justify-end min-h-[28px]">
+          <FetchingBadge isFetching={isFetching} isPending={isPending} />
+        </div>
         {isPending ? (
           <StatRowSkeleton count={3} />
         ) : (

@@ -1,3 +1,5 @@
+import { useEffect, useState } from "react";
+import { Check, RefreshCw } from "lucide-react";
 import { Skeleton } from "../ui/skeleton";
 import { Card } from "../ui/card";
 
@@ -89,11 +91,61 @@ export function DeviceCategorySkeleton() {
   );
 }
 
-export function FetchingBadge() {
+export function FetchingBadge({
+  isFetching = true,
+  isPending = false,
+}: {
+  isFetching?: boolean;
+  isPending?: boolean;
+}) {
+  const [phase, setPhase] = useState<"hidden" | "refreshing" | "updated">(
+    isFetching && !isPending ? "refreshing" : "hidden",
+  );
+
+  useEffect(() => {
+    if (isPending) {
+      setPhase("hidden");
+      return;
+    }
+    if (isFetching) {
+      setPhase("refreshing");
+      return;
+    }
+    setPhase((prev) => {
+      if (prev === "refreshing") return "updated";
+      return prev;
+    });
+  }, [isFetching, isPending]);
+
+  useEffect(() => {
+    if (phase !== "updated") return;
+    const t = setTimeout(() => setPhase("hidden"), 1800);
+    return () => clearTimeout(t);
+  }, [phase]);
+
+  if (phase === "hidden") return null;
+
+  if (phase === "refreshing") {
+    return (
+      <span
+        role="status"
+        aria-live="polite"
+        className="inline-flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-700 shadow-sm transition-all duration-300"
+      >
+        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+        Refreshing
+      </span>
+    );
+  }
+
   return (
-    <span className="inline-flex items-center gap-2 text-xs text-muted-foreground">
-      <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
-      Refreshing…
+    <span
+      role="status"
+      aria-live="polite"
+      className="inline-flex animate-in fade-in slide-in-from-top-1 items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-700 shadow-sm transition-all duration-300"
+    >
+      <Check className="w-3.5 h-3.5" />
+      Updated
     </span>
   );
 }

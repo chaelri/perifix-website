@@ -204,8 +204,8 @@ export function AccountsList() {
         </div>
 
         <Card className="p-6 shadow-xl border-2 border-blue-200">
-          <div className="flex justify-end mb-3 -mt-2">
-            {isFetching && !isPending && <FetchingBadge />}
+          <div className="flex justify-end mb-3 -mt-2 min-h-[28px]">
+            <FetchingBadge isFetching={isFetching} isPending={isPending} />
           </div>
           {isPending ? (
             <ListSkeleton count={3} />

@@ -57,7 +57,10 @@ interface Problem {
 interface Device {
   id: number;
   name: string;
-  icon: ComponentType<{ className?: string }>;
+  // Stored as a string (not a component) so the data round-trips through
+  // localStorage when react-query persists the cache. Resolve to the actual
+  // lucide component at render time via resolveIcon().
+  iconName: string;
   slug: string;
   color: string;
   problems: Problem[];
@@ -76,7 +79,8 @@ const ICON_MAP: Record<string, ComponentType<{ className?: string }>> = {
   Projector,
 };
 
-const resolveIcon = (name: string) => ICON_MAP[name] ?? HelpCircle;
+const resolveIcon = (name: string): ComponentType<{ className?: string }> =>
+  ICON_MAP[name] ?? HelpCircle;
 
 // Tailwind v4 only emits CSS for classes it can statically see. Device color
 // classes are loaded as strings from Postgres, so we list them here so the
@@ -112,6 +116,7 @@ export function Troubleshooting(_props: TroubleshootingProps) {
 
   const { data: devices = [], isPending: isLoading, isFetching } = useQuery({
     queryKey: ["troubleshooting-tree"],
+    staleTime: 30 * 60_000,
     queryFn: async () => {
       const [devs, probs] = await Promise.all([
         supabase
@@ -145,7 +150,7 @@ export function Troubleshooting(_props: TroubleshootingProps) {
         name: d.name,
         category: d.category as "input" | "output",
         color: d.color_class,
-        icon: resolveIcon(d.icon_name),
+        iconName: d.icon_name,
         problems: problemsByDevice.get(d.id) ?? [],
       })) as Device[];
     },
@@ -263,7 +268,7 @@ export function Troubleshooting(_props: TroubleshootingProps) {
 
   const renderDeviceList = (deviceList: Device[]) => {
     return deviceList.map((device) => {
-      const Icon = device.icon;
+      const Icon = resolveIcon(device.iconName);
       const isDeviceExpanded = expandedDevice === device.slug;
 
       return (
@@ -476,11 +481,9 @@ export function Troubleshooting(_props: TroubleshootingProps) {
       </div>
 
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-12">
-        {isFetching && !isLoading && (
-          <div className="mb-3 flex justify-end">
-            <FetchingBadge />
-          </div>
-        )}
+        <div className="mb-3 flex justify-end min-h-[28px]">
+          <FetchingBadge isFetching={isFetching} isPending={isLoading} />
+        </div>
         {isLoading ? (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
             <DeviceCategorySkeleton />
@@ -587,7 +590,7 @@ export function Troubleshooting(_props: TroubleshootingProps) {
           onClose={() => setModalOpen(false)}
           problem={selectedProblem.problem}
           deviceName={selectedProblem.device.name}
-          deviceIcon={selectedProblem.device.icon}
+          deviceIcon={resolveIcon(selectedProblem.device.iconName)}
           deviceColor={selectedProblem.device.color}
           onFeedback={handleGuideFeedback}
           hasFeedback={feedbackGiven.has(

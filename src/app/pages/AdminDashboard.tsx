@@ -163,7 +163,7 @@ export function AdminDashboard() {
             </div>
             <Button
               onClick={() => navigate("/accounts-list")}
-              className="bg-green-600 hover:bg-green-700 text-white hover:text-black"
+              className="bg-green-600 hover:bg-green-700 text-white hover:text-white shadow-sm"
             >
               View Requests
             </Button>
@@ -186,7 +186,7 @@ export function AdminDashboard() {
             </div>
             <Button
               onClick={() => navigate("/user-accounts")}
-              className="bg-blue-600 hover:bg-blue-700 text-white hover:text-black"
+              className="bg-blue-600 hover:bg-blue-700 text-white hover:text-white shadow-sm"
             >
               Manage Users
             </Button>
@@ -209,7 +209,7 @@ export function AdminDashboard() {
             </div>
             <Button
               onClick={() => navigate("/analytics")}
-              className="bg-purple-600 hover:bg-purple-700 text-white hover:text-black"
+              className="bg-purple-600 hover:bg-purple-700 text-white hover:text-white shadow-sm"
             >
               View Analytics
             </Button>
@@ -232,7 +232,7 @@ export function AdminDashboard() {
             </div>
             <Button
               onClick={() => navigate("/support-requests")}
-              className="bg-orange-600 hover:bg-orange-700 text-white hover:text-black"
+              className="bg-orange-600 hover:bg-orange-700 text-white hover:text-white shadow-sm"
             >
               View Requests
             </Button>
@@ -249,7 +249,7 @@ export function AdminDashboard() {
                   View and manage all registered users
                 </p>
               </div>
-              {isFetching && !isPending && <FetchingBadge />}
+              <FetchingBadge isFetching={isFetching} isPending={isPending} />
             </div>
           </div>
 
