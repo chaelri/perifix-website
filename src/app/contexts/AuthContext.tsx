@@ -77,19 +77,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (mounted) setIsLoading(false);
     });
 
-    const { data: sub } = supabase.auth.onAuthStateChange(async (_event, sess) => {
+    const { data: sub } = supabase.auth.onAuthStateChange(async (event, sess) => {
       if (!mounted) return;
       setSession(sess);
-      if (sess) {
-        try {
-          const u = await loadUserFromSession(sess);
-          if (mounted) setUser(u);
-        } catch (err) {
-          console.error("Failed to load profile:", err);
-          if (mounted) setUser(null);
-        }
-      } else {
+
+      // Real sign-out: drop the user.
+      if (event === "SIGNED_OUT" || !sess) {
         setUser(null);
+        return;
+      }
+
+      // Token refresh / tab refocus: session is still valid and we already
+      // have the user loaded — don't re-fetch the profile, since a transient
+      // failure here would otherwise log the user out of the app.
+      if (event === "TOKEN_REFRESHED" || event === "USER_UPDATED") {
+        return;
+      }
+
+      // Initial session restore or fresh sign-in: hydrate the profile.
+      try {
+        const u = await loadUserFromSession(sess);
+        if (mounted) setUser(u);
+      } catch (err) {
+        console.error("[auth] Failed to load profile (keeping existing session):", err);
+        // Intentionally NOT clearing user — the session is valid; this is
+        // likely a transient profile-fetch error.
       }
     });
 
