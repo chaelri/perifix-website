@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { Card } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -263,16 +264,16 @@ export function Contact() {
             Most issues can be resolved quickly using our visual troubleshooting guides. Try searching for your device first!
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <a href="/troubleshooting">
+            <Link to="/troubleshooting">
               <Button size="lg" className="bg-accent hover:bg-accent/90 text-accent-foreground">
                 Browse Troubleshooting Guides
               </Button>
-            </a>
-            <a href="/devices">
+            </Link>
+            <Link to="/troubleshooting">
               <Button size="lg" variant="outline" className="bg-white text-primary hover:bg-blue-100 border-white">
                 View All Devices
               </Button>
-            </a>
+            </Link>
           </div>
         </div>
       </section>

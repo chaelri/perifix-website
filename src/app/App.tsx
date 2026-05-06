@@ -3,6 +3,7 @@ import {
   BrowserRouter as Router,
   Routes,
   Route,
+  Navigate,
   useLocation,
 } from "react-router-dom";
 import { Navbar } from "./components/Navbar";
@@ -134,6 +135,8 @@ function AppContent() {
               </ProtectedRoute>
             }
           />
+          {/* Unknown URLs → home, so the page never goes blank. */}
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
       <Footer />
