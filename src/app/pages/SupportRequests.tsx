@@ -46,7 +46,10 @@ interface SupportRequest {
   issue: string | null;
   description: string;
   created_at: string;
-  status: "pending" | "resolved" | "priority";
+  status: "pending" | "resolved" | "priority" | "waiting_for_response";
+  last_reply: string | null;
+  last_reply_at: string | null;
+  last_reply_by: string | null;
   source: "contact" | "troubleshooting";
 }
 
@@ -55,10 +58,8 @@ async function fetchSupportRequests(): Promise<SupportRequest[]> {
   const snap = await getDocs(q);
   return snap.docs.map((d) => {
     const data = d.data();
-    const created =
-      data.created_at instanceof Timestamp
-        ? data.created_at.toDate().toISOString()
-        : data.created_at ?? "";
+    const ts = (v: unknown) =>
+      v instanceof Timestamp ? v.toDate().toISOString() : ((v as string) ?? null);
     return {
       id: d.id,
       name: data.name ?? "",
@@ -68,7 +69,10 @@ async function fetchSupportRequests(): Promise<SupportRequest[]> {
       description: data.description ?? "",
       status: (data.status as SupportRequest["status"]) ?? "pending",
       source: (data.source as SupportRequest["source"]) ?? "contact",
-      created_at: created,
+      created_at: ts(data.created_at) ?? "",
+      last_reply: data.last_reply ?? null,
+      last_reply_at: ts(data.last_reply_at),
+      last_reply_by: data.last_reply_by ?? null,
     };
   });
 }
@@ -251,6 +255,11 @@ export function SupportRequests() {
         icon: Flag,
         label: "Priority",
       },
+      waiting_for_response: {
+        color: "bg-blue-100 text-blue-700 border-blue-300",
+        icon: AlertCircle,
+        label: "Waiting",
+      },
     };
     return badges[status];
   };
@@ -344,6 +353,7 @@ export function SupportRequests() {
               <option value="all">All Status</option>
               <option value="pending">Pending</option>
               <option value="priority">Priority</option>
+              <option value="waiting_for_response">Waiting for response</option>
               <option value="resolved">Resolved</option>
             </select>
           </div>
@@ -664,8 +674,47 @@ export function SupportRequests() {
                         <CheckCircle className="w-4 h-4 mr-2" />
                         Mark as Resolved
                       </Button>
+                      <Button
+                        onClick={() =>
+                          updateRequestStatus(
+                            selectedRequest.id,
+                            "waiting_for_response",
+                          )
+                        }
+                        variant={
+                          selectedRequest.status === "waiting_for_response"
+                            ? "default"
+                            : "outline"
+                        }
+                        className={
+                          selectedRequest.status === "waiting_for_response"
+                            ? "bg-blue-600 hover:bg-blue-700"
+                            : "border-blue-300 text-blue-700 hover:bg-blue-100"
+                        }
+                        title="Asks the user for more info; surfaces a one-shot reply box on their My Support Requests page."
+                      >
+                        <AlertCircle className="w-4 h-4 mr-2" />
+                        Ask for response
+                      </Button>
                     </div>
                   </div>
+
+                  {/* Latest reply from the user, if any */}
+                  {selectedRequest.last_reply && (
+                    <div className="rounded-lg bg-blue-50 border-2 border-blue-200 p-4">
+                      <p className="text-xs font-semibold text-blue-700 uppercase tracking-wider mb-1">
+                        Latest reply from user
+                      </p>
+                      <p className="text-sm text-blue-900 whitespace-pre-wrap">
+                        {selectedRequest.last_reply}
+                      </p>
+                      {selectedRequest.last_reply_at && (
+                        <p className="text-[11px] text-blue-700/70 mt-2">
+                          {new Date(selectedRequest.last_reply_at).toLocaleString()}
+                        </p>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
 

@@ -46,7 +46,11 @@ export function Contact() {
         created_at: serverTimestamp(),
         updated_at: serverTimestamp(),
       });
-      toast.success("Message sent! We'll get back to you soon.");
+      toast.success(
+        user
+          ? "Message sent! Track its status under My Support Requests."
+          : "Message sent! We'll get back to you soon.",
+      );
       setSubject("");
       setMessage("");
       if (!user) {
@@ -165,6 +169,18 @@ export function Contact() {
           <div>
             <Card className="p-8 shadow-xl bg-white">
               <h2 className="mb-6">Send Us a Message</h2>
+              {!user && (
+                <div className="mb-5 rounded-lg bg-blue-50 border border-blue-200 px-4 py-3 text-sm text-blue-800 flex items-start gap-2">
+                  <Lightbulb className="w-4 h-4 mt-0.5 flex-shrink-0 text-blue-600" />
+                  <span>
+                    <Link to="/student-login" className="font-semibold underline">
+                      Sign in
+                    </Link>{" "}
+                    before submitting and you'll be able to track your request's
+                    status under <em>My Support Requests</em>.
+                  </span>
+                </div>
+              )}
               <form onSubmit={handleSubmit} className="space-y-6">
                 <div>
                   <Label htmlFor="name">Name</Label>

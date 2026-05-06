@@ -31,12 +31,22 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
-    // support_requests — anyone can submit; owner reads own; admin all
+    // support_requests — anyone can submit; owner reads own + can post a reply
+    // when admin set status to waiting_for_response; admin has full control.
     match /support_requests/{id} {
       allow create: if true;
       allow read: if isAdmin()
         || (isSignedIn() && resource.data.user_id == request.auth.uid);
-      allow update, delete: if isAdmin();
+      allow update: if isAdmin()
+        || (isSignedIn()
+            && resource.data.user_id == request.auth.uid
+            && resource.data.status == 'waiting_for_response'
+            && request.resource.data.diff(resource.data).affectedKeys()
+                 .hasOnly(['last_reply', 'last_reply_at', 'last_reply_by',
+                           'status', 'updated_at'])
+            && request.resource.data.status == 'pending'
+            && request.resource.data.last_reply_by == request.auth.uid);
+      allow delete: if isAdmin();
     }
 
     // devices — public read; admin write

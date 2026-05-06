@@ -25,6 +25,7 @@ import { AnalyticsDashboard } from "./pages/AnalyticsDashboard";
 import { SupportRequests } from "./pages/SupportRequests";
 import { ResetPassword } from "./pages/ResetPassword";
 import { Settings } from "./pages/Settings";
+import { MySupportRequests } from "./pages/MySupportRequests";
 import { TroubleshootingAdmin } from "./pages/TroubleshootingAdmin";
 import { Toaster } from "./components/ui/sonner";
 import { AuthProvider } from "./contexts/AuthContext";
@@ -124,6 +125,14 @@ function AppContent() {
             element={
               <ProtectedRoute>
                 <Settings />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/my-tickets"
+            element={
+              <ProtectedRoute>
+                <MySupportRequests />
               </ProtectedRoute>
             }
           />

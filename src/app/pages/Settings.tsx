@@ -4,7 +4,8 @@ import { Card } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
-import { User, Save, ArrowLeft, Mail, Shield } from "lucide-react";
+import { User, Save, ArrowLeft, Mail, Shield, MessageSquare, ChevronRight } from "lucide-react";
+import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { useAuth } from "../contexts/AuthContext";
 import { db } from "../utils/firebase/client";
@@ -217,6 +218,23 @@ export function Settings() {
             </div>
           </Card>
         )}
+
+        <Link to="/my-tickets" className="block mt-4">
+          <Card className="p-5 border border-gray-200 hover:border-blue-300 hover:shadow-sm transition-all">
+            <div className="flex items-center gap-4">
+              <div className="w-11 h-11 bg-blue-100 rounded-xl flex items-center justify-center">
+                <MessageSquare className="w-5 h-5 text-blue-600" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="font-medium">My Support Requests</div>
+                <p className="text-sm text-muted-foreground">
+                  Track the status of tickets you've submitted.
+                </p>
+              </div>
+              <ChevronRight className="w-5 h-5 text-gray-400" />
+            </div>
+          </Card>
+        </Link>
       </div>
     </div>
   );
