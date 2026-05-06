@@ -1,24 +1,30 @@
 import { QueryClient } from "@tanstack/react-query";
+import { createSyncStoragePersister } from "@tanstack/query-sync-storage-persister";
 
-// In-memory query cache. Deliberately NOT persisted to localStorage —
-// per Charlie's preference, we'd rather show a fresh loading state than
-// flash stale data that could be wrong.
+// Persist the query cache to localStorage so a refresh shows cached data
+// instantly (with a "Refreshing…" indicator while the background refetch
+// runs) instead of an empty page for several seconds.
 //
-// staleTime: 30s lets quick back-and-forth navigations reuse cached data
-// without a refetch. After 30s the data is "stale" and react-query
-// background-refetches on next access (but still hands the cached value
-// to components first if available).
-//
-// gcTime: 5 min keeps unmounted query data around long enough that
-// returning to a page within a few minutes feels instant.
+// staleTime: 30s lets quick repeat-visits skip the refetch entirely.
+// gcTime: 24h keeps the persisted cache around between sessions.
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       staleTime: 30_000,
-      gcTime: 5 * 60_000,
+      gcTime: 24 * 60 * 60_000,
       refetchOnWindowFocus: true,
       refetchOnReconnect: true,
       retry: 1,
     },
   },
 });
+
+export const persister =
+  typeof window !== "undefined"
+    ? createSyncStoragePersister({
+        storage: window.localStorage,
+        key: "perifix-query-cache",
+        // Throttle so we don't flood localStorage on every state change.
+        throttleTime: 1_000,
+      })
+    : undefined;

@@ -4,7 +4,7 @@ import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Textarea } from "../components/ui/textarea";
 import { Label } from "../components/ui/label";
-import { Mail, Phone, Facebook, MapPin, Clock } from "lucide-react";
+import { Mail, Phone, Facebook, MapPin, Clock, Lightbulb, Check } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "../utils/supabase/client";
 import { useAuth } from "../contexts/AuthContext";
@@ -232,13 +232,27 @@ export function Contact() {
               </form>
             </Card>
 
-            <div className="mt-6 p-6 bg-gradient-to-br from-blue-100 to-amber-100 rounded-2xl shadow-md">
-              <h4 className="mb-2">Quick Tips</h4>
-              <ul className="space-y-2 text-sm text-muted-foreground">
-                <li>• Include specific device model numbers when possible</li>
-                <li>• Describe what steps you've already tried</li>
-                <li>• Attach screenshots if relevant (email only)</li>
-                <li>• Check our troubleshooting guides first for instant solutions</li>
+            <div className="mt-6 p-6 bg-white rounded-2xl shadow-md border-2 border-blue-200">
+              <div className="flex items-center gap-3 mb-4 pb-3 border-b border-blue-100">
+                <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <Lightbulb className="w-5 h-5 text-white" />
+                </div>
+                <h4 className="m-0 text-blue-900">Quick Tips</h4>
+              </div>
+              <ul className="space-y-3">
+                {[
+                  "Include specific device model numbers when possible",
+                  "Describe what steps you've already tried",
+                  "Attach screenshots if relevant (email only)",
+                  "Check our troubleshooting guides first for instant solutions",
+                ].map((tip) => (
+                  <li key={tip} className="flex items-start gap-3 text-sm text-gray-700">
+                    <span className="mt-0.5 w-5 h-5 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center flex-shrink-0">
+                      <Check className="w-3 h-3" />
+                    </span>
+                    <span>{tip}</span>
+                  </li>
+                ))}
               </ul>
             </div>
           </div>

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { Card } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -18,6 +18,8 @@ import { toast } from "sonner";
 import { useAuth } from "../contexts/AuthContext";
 import { supabase } from "../utils/supabase/client";
 import { Link, useNavigate } from "react-router-dom";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { ListSkeleton, FetchingBadge } from "../components/skeletons/Skeletons";
 
 interface ProfileRow {
   id: string;
@@ -29,11 +31,19 @@ interface ProfileRow {
   created_at: string;
 }
 
+async function fetchProfiles(): Promise<ProfileRow[]> {
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("id, first_name, last_name, full_name, email, role, created_at")
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return (data ?? []) as ProfileRow[];
+}
+
 export function UserAccounts() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [users, setUsers] = useState<ProfileRow[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({
@@ -47,32 +57,18 @@ export function UserAccounts() {
   const [selectedUserForPassword, setSelectedUserForPassword] = useState<ProfileRow | null>(null);
   const [recoveryLink, setRecoveryLink] = useState<string | null>(null);
 
-  const loadUsers = useCallback(async () => {
-    setIsLoading(true);
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("id, first_name, last_name, full_name, email, role, created_at")
-      .order("created_at", { ascending: false });
-    if (error) {
-      toast.error(error.message || "Failed to load users.");
-      setUsers([]);
-      setIsLoading(false);
-      return;
-    }
-    setUsers((data ?? []) as ProfileRow[]);
-    setIsLoading(false);
-  }, []);
+  const { data: users = [], isPending, isFetching } = useQuery({
+    queryKey: ["profiles"],
+    queryFn: fetchProfiles,
+    enabled: user?.role === "admin",
+  });
 
   useEffect(() => {
     if (user && user.role !== "admin") {
       navigate("/");
       toast.error("Access denied. Admin privileges required.");
-      return;
     }
-    if (user?.role === "admin") {
-      void loadUsers();
-    }
-  }, [user, navigate, loadUsers]);
+  }, [user, navigate]);
 
   const handleEditClick = (u: ProfileRow) => {
     setEditingUserId(u.id);
@@ -107,7 +103,7 @@ export function UserAccounts() {
     }
     toast.success("User information updated successfully!");
     setEditingUserId(null);
-    await loadUsers();
+    queryClient.invalidateQueries({ queryKey: ["profiles"] });
   };
 
   const handleGeneratePassword = async (u: ProfileRow) => {
@@ -171,23 +167,24 @@ export function UserAccounts() {
             </div>
           </div>
 
-          <div className="relative max-w-md">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-            <Input
-              type="text"
-              placeholder="Search by name or email..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10"
-            />
+          <div className="flex items-center justify-between gap-3">
+            <div className="relative max-w-md flex-1">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <Input
+                type="text"
+                placeholder="Search by name or email..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            {isFetching && !isPending && <FetchingBadge />}
           </div>
         </div>
 
         <div className="space-y-4">
-          {isLoading ? (
-            <Card className="p-12 text-center">
-              <p className="text-muted-foreground">Loading users…</p>
-            </Card>
+          {isPending ? (
+            <ListSkeleton count={4} />
           ) : filteredUsers.length === 0 ? (
             <Card className="p-12 text-center">
               <Users className="w-16 h-16 text-gray-300 mx-auto mb-4" />

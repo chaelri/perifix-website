@@ -4,7 +4,7 @@ import { Search, CheckCircle2, Zap, Eye, Lock, Printer, Mouse, Keyboard, Monitor
 import BuildOutlinedIcon from "@mui/icons-material/BuildOutlined";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 import { useAuth } from "../contexts/AuthContext";
-import logoImage from "figma:asset/ab58eeaa257e876782c9f32bf8bd702e735f6d24.png";
+import logoImage from "../assets/perifix-logo.png";
 
 export function Home() {
   const { user } = useAuth();

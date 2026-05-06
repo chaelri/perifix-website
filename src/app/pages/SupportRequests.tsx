@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Card } from "../components/ui/card";
 import {
   Mail,
@@ -18,6 +18,8 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "motion/react";
 import { supabase } from "../utils/supabase/client";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { ListSkeleton, StatRowSkeleton, FetchingBadge } from "../components/skeletons/Skeletons";
 
 interface SupportRequest {
   id: string;
@@ -31,34 +33,36 @@ interface SupportRequest {
   source: "contact" | "troubleshooting";
 }
 
+async function fetchSupportRequests(): Promise<SupportRequest[]> {
+  const { data, error } = await supabase
+    .from("support_requests")
+    .select("id, name, email, device, issue, description, status, source, created_at")
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return (data ?? []) as SupportRequest[];
+}
+
 export function SupportRequests() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [requests, setRequests] = useState<SupportRequest[]>([]);
+  const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [selectedRequest, setSelectedRequest] = useState<SupportRequest | null>(null);
   const [viewModalOpen, setViewModalOpen] = useState(false);
 
-  const loadRequests = useCallback(async () => {
-    const { data, error } = await supabase
-      .from("support_requests")
-      .select("id, name, email, device, issue, description, status, source, created_at")
-      .order("created_at", { ascending: false });
-    if (error) {
-      toast.error(error.message || "Failed to load support requests.");
-      return;
-    }
-    setRequests((data ?? []) as SupportRequest[]);
-  }, []);
+  const { data: requests = [], isPending, isFetching } = useQuery({
+    queryKey: ["support_requests"],
+    queryFn: fetchSupportRequests,
+    enabled: user?.role === "admin",
+  });
 
   useEffect(() => {
-    if (user?.role !== "admin") {
+    if (user && user.role !== "admin") {
       navigate("/");
       return;
     }
-
-    void loadRequests();
+    if (user?.role !== "admin") return;
 
     const channel = supabase
       .channel("support_requests_admin")
@@ -66,7 +70,7 @@ export function SupportRequests() {
         "postgres_changes",
         { event: "*", schema: "public", table: "support_requests" },
         () => {
-          void loadRequests();
+          queryClient.invalidateQueries({ queryKey: ["support_requests"] });
         },
       )
       .subscribe();
@@ -74,7 +78,7 @@ export function SupportRequests() {
     return () => {
       void supabase.removeChannel(channel);
     };
-  }, [user, navigate, loadRequests]);
+  }, [user, navigate, queryClient]);
 
   const filteredRequests = useMemo(() => {
     let filtered = [...requests];
@@ -116,7 +120,9 @@ export function SupportRequests() {
       toast.error(error.message || "Failed to update status.");
       return;
     }
-    setRequests((prev) => prev.map((r) => (r.id === id ? { ...r, status } : r)));
+    queryClient.setQueryData<SupportRequest[]>(["support_requests"], (prev) =>
+      (prev ?? []).map((r) => (r.id === id ? { ...r, status } : r)),
+    );
     setSelectedRequest((prev) => (prev && prev.id === id ? { ...prev, status } : prev));
     toast.success("Request updated", {
       description: `Status changed to ${status}`,
@@ -129,7 +135,9 @@ export function SupportRequests() {
       toast.error(error.message || "Failed to delete request.");
       return;
     }
-    setRequests((prev) => prev.filter((r) => r.id !== id));
+    queryClient.setQueryData<SupportRequest[]>(["support_requests"], (prev) =>
+      (prev ?? []).filter((r) => r.id !== id),
+    );
     if (selectedRequest?.id === id) {
       setViewModalOpen(false);
       setSelectedRequest(null);
@@ -179,14 +187,24 @@ export function SupportRequests() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="mb-2">Support Requests</h1>
-          <p className="text-xl text-muted-foreground">
-            Manage and respond to user support tickets
-          </p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="mb-2">Support Requests</h1>
+              <p className="text-xl text-muted-foreground">
+                Manage and respond to user support tickets
+              </p>
+            </div>
+            {isFetching && !isPending && <FetchingBadge />}
+          </div>
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+        {isPending && (
+          <div className="mb-8">
+            <StatRowSkeleton count={4} />
+          </div>
+        )}
+        <div className={`grid grid-cols-1 md:grid-cols-4 gap-4 mb-8 ${isPending ? "hidden" : ""}`}>
           <Card className="p-4 bg-gradient-to-br from-blue-50 to-white border-2 border-blue-200">
             <div className="flex items-center justify-between">
               <div>
@@ -260,7 +278,11 @@ export function SupportRequests() {
 
         {/* Requests Table */}
         <Card className="overflow-hidden">
-          {filteredRequests.length > 0 ? (
+          {isPending ? (
+            <div className="p-6">
+              <ListSkeleton count={4} />
+            </div>
+          ) : filteredRequests.length > 0 ? (
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-gray-50 border-b-2 border-gray-200">

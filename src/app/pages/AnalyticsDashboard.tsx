@@ -13,7 +13,8 @@ import { Button } from "../components/ui/button";
 import { useAuth } from "../contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../utils/supabase/client";
-import { toast } from "sonner";
+import { useQuery } from "@tanstack/react-query";
+import { StatRowSkeleton, FetchingBadge } from "../components/skeletons/Skeletons";
 
 interface FeedbackRecord {
   id: number;
@@ -23,68 +24,53 @@ interface FeedbackRecord {
   created_at: string;
 }
 
-interface DeviceLookup {
-  slug: string;
-  name: string;
-}
+async function fetchAnalytics() {
+  const [fb, devs, probs] = await Promise.all([
+    supabase
+      .from("troubleshooting_feedback")
+      .select("id, device_slug, problem_slug, helpful, created_at")
+      .order("created_at", { ascending: false }),
+    supabase.from("devices").select("slug, name"),
+    supabase.from("problems").select("slug, title"),
+  ]);
+  if (fb.error) throw fb.error;
+  if (devs.error) throw devs.error;
+  if (probs.error) throw probs.error;
 
-interface ProblemLookup {
-  slug: string;
-  device_id: number;
-  title: string;
+  const deviceMap = new Map<string, string>();
+  (devs.data ?? []).forEach((d: any) => deviceMap.set(d.slug, d.name));
+
+  const problemMap = new Map<string, string>();
+  (probs.data ?? []).forEach((p: any) => problemMap.set(p.slug, p.title));
+
+  return {
+    feedback: (fb.data ?? []) as FeedbackRecord[],
+    deviceMap,
+    problemMap,
+  };
 }
 
 export function AnalyticsDashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [feedback, setFeedback] = useState<FeedbackRecord[]>([]);
-  const [deviceMap, setDeviceMap] = useState<Map<string, string>>(new Map());
-  const [problemMap, setProblemMap] = useState<Map<string, string>>(new Map());
-  const [isLoading, setIsLoading] = useState(true);
   const [selectedDevice, setSelectedDevice] = useState<string>("all");
   const [timeRange, setTimeRange] = useState<string>("all");
 
   useEffect(() => {
     if (user && user.role !== "admin") {
       navigate("/");
-      return;
     }
-    if (user?.role !== "admin") return;
-
-    let mounted = true;
-    (async () => {
-      setIsLoading(true);
-      const [fb, devs, probs] = await Promise.all([
-        supabase
-          .from("troubleshooting_feedback")
-          .select("id, device_slug, problem_slug, helpful, created_at")
-          .order("created_at", { ascending: false }),
-        supabase.from("devices").select("slug, name"),
-        supabase.from("problems").select("slug, device_id, title"),
-      ]);
-
-      if (fb.error) toast.error(fb.error.message);
-      if (devs.error) toast.error(devs.error.message);
-      if (probs.error) toast.error(probs.error.message);
-
-      if (!mounted) return;
-
-      setFeedback((fb.data ?? []) as FeedbackRecord[]);
-
-      const dMap = new Map<string, string>();
-      (devs.data as DeviceLookup[] | null)?.forEach((d) => dMap.set(d.slug, d.name));
-      setDeviceMap(dMap);
-
-      const pMap = new Map<string, string>();
-      (probs.data as ProblemLookup[] | null)?.forEach((p) => pMap.set(p.slug, p.title));
-      setProblemMap(pMap);
-
-      setIsLoading(false);
-    })();
-    return () => {
-      mounted = false;
-    };
   }, [user, navigate]);
+
+  const { data, isPending, isFetching } = useQuery({
+    queryKey: ["analytics"],
+    queryFn: fetchAnalytics,
+    enabled: user?.role === "admin",
+  });
+
+  const feedback = data?.feedback ?? [];
+  const deviceMap = data?.deviceMap ?? new Map<string, string>();
+  const problemMap = data?.problemMap ?? new Map<string, string>();
 
   const filteredFeedback = useMemo(() => {
     let filtered = [...feedback];
@@ -216,10 +202,13 @@ export function AnalyticsDashboard() {
           </div>
         </div>
 
-        {isLoading ? (
-          <Card className="p-12 text-center">
-            <p className="text-muted-foreground">Loading analytics…</p>
-          </Card>
+        {isFetching && !isPending && (
+          <div className="mb-3 flex justify-end">
+            <FetchingBadge />
+          </div>
+        )}
+        {isPending ? (
+          <StatRowSkeleton count={3} />
         ) : (
           <>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">

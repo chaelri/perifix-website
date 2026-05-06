@@ -33,7 +33,9 @@ import { ContactSupportModal } from "../components/ContactSupportModal";
 import { useAuth } from "../contexts/AuthContext";
 import { supabase } from "../utils/supabase/client";
 import { toast } from "sonner";
-import logoImage from "figma:asset/ab58eeaa257e876782c9f32bf8bd702e735f6d24.png";
+import { useQuery } from "@tanstack/react-query";
+import { DeviceCategorySkeleton, FetchingBadge } from "../components/skeletons/Skeletons";
+import logoImage from "../assets/perifix-logo.png";
 
 type ProblemSeverity = "common" | "moderate" | "rare";
 
@@ -106,35 +108,26 @@ export function Troubleshooting(_props: TroubleshootingProps) {
   } | null>(null);
   const [feedbackGiven, setFeedbackGiven] = useState<Set<string>>(new Set());
 
-  const [devices, setDevices] = useState<Device[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-
   const isAdmin = user?.role === "admin";
 
-  useEffect(() => {
-    let mounted = true;
-    (async () => {
-      const { data: deviceRows, error: dErr } = await supabase
-        .from("devices")
-        .select("id, slug, name, category, icon_name, color_class, display_order")
-        .order("display_order", { ascending: true });
-      if (dErr) {
-        toast.error(dErr.message || "Failed to load devices.");
-        setIsLoading(false);
-        return;
-      }
-      const { data: problemRows, error: pErr } = await supabase
-        .from("problems")
-        .select("id, device_id, slug, title, severity, steps, display_order")
-        .order("display_order", { ascending: true });
-      if (pErr) {
-        toast.error(pErr.message || "Failed to load problems.");
-        setIsLoading(false);
-        return;
-      }
+  const { data: devices = [], isPending: isLoading, isFetching } = useQuery({
+    queryKey: ["troubleshooting-tree"],
+    queryFn: async () => {
+      const [devs, probs] = await Promise.all([
+        supabase
+          .from("devices")
+          .select("id, slug, name, category, icon_name, color_class, display_order")
+          .order("display_order", { ascending: true }),
+        supabase
+          .from("problems")
+          .select("id, device_id, slug, title, severity, steps, display_order")
+          .order("display_order", { ascending: true }),
+      ]);
+      if (devs.error) throw devs.error;
+      if (probs.error) throw probs.error;
 
       const problemsByDevice = new Map<number, Problem[]>();
-      for (const p of problemRows ?? []) {
+      for (const p of probs.data ?? []) {
         const list = problemsByDevice.get(p.device_id) ?? [];
         list.push({
           id: p.id,
@@ -146,7 +139,7 @@ export function Troubleshooting(_props: TroubleshootingProps) {
         problemsByDevice.set(p.device_id, list);
       }
 
-      const built: Device[] = (deviceRows ?? []).map((d: any) => ({
+      return (devs.data ?? []).map((d: any) => ({
         id: d.id,
         slug: d.slug,
         name: d.name,
@@ -154,17 +147,9 @@ export function Troubleshooting(_props: TroubleshootingProps) {
         color: d.color_class,
         icon: resolveIcon(d.icon_name),
         problems: problemsByDevice.get(d.id) ?? [],
-      }));
-
-      if (mounted) {
-        setDevices(built);
-        setIsLoading(false);
-      }
-    })();
-    return () => {
-      mounted = false;
-    };
-  }, []);
+      })) as Device[];
+    },
+  });
 
   const inputDevices = useMemo(() => devices.filter((d) => d.category === "input"), [devices]);
   const outputDevices = useMemo(() => devices.filter((d) => d.category === "output"), [devices]);
@@ -491,8 +476,16 @@ export function Troubleshooting(_props: TroubleshootingProps) {
       </div>
 
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-12">
+        {isFetching && !isLoading && (
+          <div className="mb-3 flex justify-end">
+            <FetchingBadge />
+          </div>
+        )}
         {isLoading ? (
-          <div className="text-center py-12 text-muted-foreground">Loading guides…</div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+            <DeviceCategorySkeleton />
+            <DeviceCategorySkeleton />
+          </div>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
             <Card className="overflow-hidden">

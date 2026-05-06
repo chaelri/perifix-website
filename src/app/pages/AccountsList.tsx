@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card } from "../components/ui/card";
 import { Button } from "../components/ui/button";
@@ -15,6 +15,8 @@ import {
   User,
 } from "lucide-react";
 import { toast } from "sonner";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { ListSkeleton, FetchingBadge } from "../components/skeletons/Skeletons";
 
 interface AccountRequest {
   id: number;
@@ -30,38 +32,35 @@ interface ApprovalDetails {
   name: string;
 }
 
+async function fetchAccountRequests(): Promise<AccountRequest[]> {
+  const { data, error } = await supabase
+    .from("account_requests")
+    .select("id, first_name, last_name, email, status, created_at")
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return (data ?? []) as AccountRequest[];
+}
+
 export function AccountsList() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [requests, setRequests] = useState<AccountRequest[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [approvingId, setApprovingId] = useState<number | null>(null);
   const [showApprovalDialog, setShowApprovalDialog] = useState(false);
   const [approvalDetails, setApprovalDetails] = useState<ApprovalDetails | null>(null);
 
-  const loadRequests = useCallback(async () => {
-    setIsLoading(true);
-    const { data, error } = await supabase
-      .from("account_requests")
-      .select("id, first_name, last_name, email, status, created_at")
-      .order("created_at", { ascending: false });
-    if (error) {
-      toast.error(error.message || "Failed to load account requests.");
-      setIsLoading(false);
-      return;
-    }
-    setRequests((data ?? []) as AccountRequest[]);
-    setIsLoading(false);
-  }, []);
+  const { data: requests = [], isPending, isFetching } = useQuery({
+    queryKey: ["account_requests"],
+    queryFn: fetchAccountRequests,
+    enabled: user?.role === "admin",
+  });
 
   useEffect(() => {
-    if (user?.role !== "admin") {
+    if (user && user.role !== "admin") {
       toast.error("Access denied. Admin privileges required.");
       navigate("/");
-      return;
     }
-    void loadRequests();
-  }, [user, navigate, loadRequests]);
+  }, [user, navigate]);
 
   const handleApprove = async (request: AccountRequest) => {
     setApprovingId(request.id);
@@ -80,7 +79,7 @@ export function AccountsList() {
       }
       setApprovalDetails({ email: data.email, name: data.name });
       setShowApprovalDialog(true);
-      await loadRequests();
+      queryClient.invalidateQueries({ queryKey: ["account_requests"] });
     } catch (err: any) {
       toast.error(err?.message ?? "Failed to approve account.");
     } finally {
@@ -98,7 +97,7 @@ export function AccountsList() {
       return;
     }
     toast.success("Request rejected.");
-    await loadRequests();
+    queryClient.invalidateQueries({ queryKey: ["account_requests"] });
   };
 
   const getStatusBadge = (status: string) => {
@@ -205,10 +204,11 @@ export function AccountsList() {
         </div>
 
         <Card className="p-6 shadow-xl border-2 border-blue-200">
-          {isLoading ? (
-            <div className="text-center py-12">
-              <p className="text-muted-foreground">Loading requests…</p>
-            </div>
+          <div className="flex justify-end mb-3 -mt-2">
+            {isFetching && !isPending && <FetchingBadge />}
+          </div>
+          {isPending ? (
+            <ListSkeleton count={3} />
           ) : requests.length === 0 ? (
             <div className="text-center py-12">
               <UserPlus className="w-12 h-12 text-gray-400 mx-auto mb-4" />

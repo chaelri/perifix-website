@@ -6,7 +6,7 @@ import {
   AccordionTrigger,
 } from "../components/ui/accordion";
 import { HelpCircle } from "lucide-react";
-import logoImage from "figma:asset/ab58eeaa257e876782c9f32bf8bd702e735f6d24.png";
+import logoImage from "../assets/perifix-logo.png";
 
 export function FAQs() {
   const faqs = [

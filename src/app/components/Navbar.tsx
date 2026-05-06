@@ -3,7 +3,7 @@ import { Menu, LogOut, User, Shield, Users } from "lucide-react";
 import { Button } from "./ui/button";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle, SheetDescription } from "./ui/sheet";
 import { useAuth } from "../contexts/AuthContext";
-import logoImage from "figma:asset/ab58eeaa257e876782c9f32bf8bd702e735f6d24.png";
+import logoImage from "../assets/perifix-logo.png";
 import { useState } from "react";
 import { LoadingScreen } from "./LoadingScreen";
 

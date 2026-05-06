@@ -1,11 +1,12 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "../components/ui/button";
 import { Card } from "../components/ui/card";
 import { LogOut, Shield, Users, UserCheck, Calendar, Mail, UserPlus, BarChart3, AlertCircle } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
 import { supabase } from "../utils/supabase/client";
-import { toast } from "sonner";
+import { useQuery } from "@tanstack/react-query";
+import { StatRowSkeleton, TableRowSkeleton, FetchingBadge } from "../components/skeletons/Skeletons";
 
 interface UserData {
   id: string;
@@ -16,46 +17,40 @@ interface UserData {
   created_at: string;
 }
 
+async function fetchUsers(): Promise<UserData[]> {
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("id, email, full_name, first_name, last_name, role, last_login_at, created_at")
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return (data ?? []).map((p: any) => ({
+    id: p.id,
+    email: p.email,
+    name:
+      p.full_name ||
+      [p.first_name, p.last_name].filter(Boolean).join(" ").trim() ||
+      p.email,
+    role: p.role,
+    last_login_at: p.last_login_at,
+    created_at: p.created_at,
+  }));
+}
+
 export function AdminDashboard() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const [users, setUsers] = useState<UserData[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-
-  const fetchUsers = useCallback(async () => {
-    setIsLoading(true);
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("id, email, full_name, first_name, last_name, role, last_login_at, created_at")
-      .order("created_at", { ascending: false });
-    if (error) {
-      toast.error(error.message || "Failed to load users.");
-      setUsers([]);
-      setIsLoading(false);
-      return;
-    }
-    const mapped: UserData[] = (data ?? []).map((p: any) => ({
-      id: p.id,
-      email: p.email,
-      name:
-        p.full_name ||
-        [p.first_name, p.last_name].filter(Boolean).join(" ").trim() ||
-        p.email,
-      role: p.role,
-      last_login_at: p.last_login_at,
-      created_at: p.created_at,
-    }));
-    setUsers(mapped);
-    setIsLoading(false);
-  }, []);
 
   useEffect(() => {
     if (!user || user.role !== "admin") {
       navigate("/login-selection");
-      return;
     }
-    void fetchUsers();
-  }, [user, navigate, fetchUsers]);
+  }, [user, navigate]);
+
+  const { data: users = [], isPending, isFetching } = useQuery({
+    queryKey: ["profiles"],
+    queryFn: fetchUsers,
+    enabled: user?.role === "admin",
+  });
 
   const handleLogout = async () => {
     await logout();
@@ -247,15 +242,22 @@ export function AdminDashboard() {
         {/* Users Table */}
         <Card className="shadow-xl border-2 border-gray-200">
           <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-amber-50">
-            <h2 className="mb-1">User Management</h2>
-            <p className="text-sm text-muted-foreground">
-              View and manage all registered users
-            </p>
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="mb-1">User Management</h2>
+                <p className="text-sm text-muted-foreground">
+                  View and manage all registered users
+                </p>
+              </div>
+              {isFetching && !isPending && <FetchingBadge />}
+            </div>
           </div>
 
-          {isLoading ? (
-            <div className="p-8 text-center">
-              <p className="text-muted-foreground">Loading users...</p>
+          {isPending ? (
+            <div className="p-6 space-y-3">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <TableRowSkeleton key={i} columns={4} />
+              ))}
             </div>
           ) : users.length === 0 ? (
             <div className="p-8 text-center">
