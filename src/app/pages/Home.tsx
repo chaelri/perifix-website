@@ -272,15 +272,18 @@ export function Home() {
                     >
                       {/* Inner layer: continuous gentle wobble so the deck
                           looks alive between swaps, matching the floating
-                          peripheral icons. Front + back use slightly
-                          different durations so they never sync up. */}
+                          peripheral icons. Duration is fixed (not derived
+                          from `role`) so role flips during a swap don't
+                          reset the keyframe cycle — the previous version
+                          tied duration to role and the wobble didn't start
+                          looking right until the 3rd swap. */}
                       <motion.div
                         animate={{
-                          y: [0, -5, 0, 4, 0],
-                          rotate: [0, 1.4, 0, -1.4, 0],
+                          y: [0, -7, 0, 5, 0],
+                          rotate: [0, 1.6, 0, -1.6, 0],
                         }}
                         transition={{
-                          duration: role === "front" ? 6 : 7.4,
+                          duration: 6.5,
                           repeat: Infinity,
                           ease: "easeInOut",
                         }}
