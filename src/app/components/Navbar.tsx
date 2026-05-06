@@ -19,7 +19,6 @@ import { Sheet, SheetContent, SheetTrigger, SheetTitle, SheetDescription } from 
 import { useAuth } from "../contexts/AuthContext";
 import logoImage from "../assets/perifix-logo.png";
 import { useState } from "react";
-import { LoadingScreen } from "./LoadingScreen";
 
 type IconType = ComponentType<{ className?: string }>;
 
@@ -27,7 +26,6 @@ export function Navbar() {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
-  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const goAndClose = (path: string) => {
@@ -52,8 +50,10 @@ export function Navbar() {
 
   const handleLogout = async () => {
     setMobileOpen(false);
-    setIsLoggingOut(true);
-    await logout();
+    // Clear local auth + navigate immediately. The Supabase signOut network
+    // call runs in the background inside AuthContext.signOut, so the UI
+    // never blocks on it.
+    void logout();
     navigate("/");
   };
 
@@ -294,7 +294,6 @@ export function Navbar() {
           </div>
         </div>
       </div>
-      {isLoggingOut && <LoadingScreen />}
     </nav>
   );
 }

@@ -179,10 +179,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    // Clear local state synchronously so the UI flips to logged-out immediately,
+    // even if the network call to revoke the session is slow or hangs.
     setSession(null);
     setUser(null);
     writeCachedUser(null);
+    try {
+      await supabase.auth.signOut();
+    } catch (err) {
+      console.warn("[auth] signOut network call failed (already logged out locally):", err);
+    }
   };
 
   return (
