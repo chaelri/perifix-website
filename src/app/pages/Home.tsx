@@ -200,27 +200,52 @@ export function Home() {
 
             {/* Right: troubleshooting card mock + floating peripheral icons */}
             <div className="relative h-[420px] hidden lg:block">
-              {/* Floating peripheral icons */}
-              <Mouse
+              {/* Floating peripheral icons — continuous gentle wobble. Each
+                  uses a different duration so they never sync up perfectly. */}
+              <motion.div
                 aria-hidden
-                className="absolute top-2 left-0 w-12 h-12 text-white/20 -rotate-12"
-              />
-              <Keyboard
+                className="absolute top-2 left-0"
+                initial={{ rotate: -12 }}
+                animate={{ y: [0, -10, 0, 6, 0], rotate: [-12, -8, -12, -15, -12] }}
+                transition={{ duration: 7, repeat: Infinity, ease: "easeInOut" }}
+              >
+                <Mouse className="w-12 h-12 text-white/20" />
+              </motion.div>
+              <motion.div
                 aria-hidden
-                className="absolute top-6 right-2 w-14 h-14 text-white/15 rotate-6"
-              />
-              <Printer
+                className="absolute top-6 right-2"
+                initial={{ rotate: 6 }}
+                animate={{ y: [0, 8, 0, -6, 0], rotate: [6, 9, 6, 3, 6] }}
+                transition={{ duration: 8.4, repeat: Infinity, ease: "easeInOut" }}
+              >
+                <Keyboard className="w-14 h-14 text-white/15" />
+              </motion.div>
+              <motion.div
                 aria-hidden
-                className="absolute bottom-8 left-2 w-12 h-12 text-white/20 rotate-12"
-              />
-              <Headphones
+                className="absolute bottom-8 left-2"
+                initial={{ rotate: 12 }}
+                animate={{ y: [0, -7, 0, 5, 0], rotate: [12, 15, 12, 9, 12] }}
+                transition={{ duration: 6.6, repeat: Infinity, ease: "easeInOut" }}
+              >
+                <Printer className="w-12 h-12 text-white/20" />
+              </motion.div>
+              <motion.div
                 aria-hidden
-                className="absolute bottom-2 right-6 w-12 h-12 text-white/15 -rotate-6"
-              />
-              <Webcam
+                className="absolute bottom-2 right-6"
+                initial={{ rotate: -6 }}
+                animate={{ y: [0, 9, 0, -5, 0], rotate: [-6, -3, -6, -10, -6] }}
+                transition={{ duration: 7.8, repeat: Infinity, ease: "easeInOut" }}
+              >
+                <Headphones className="w-12 h-12 text-white/15" />
+              </motion.div>
+              <motion.div
                 aria-hidden
-                className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-32 h-32 text-white/5"
-              />
+                className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"
+                animate={{ y: [0, -4, 0, 4, 0], rotate: [0, 2, 0, -2, 0] }}
+                transition={{ duration: 11, repeat: Infinity, ease: "easeInOut" }}
+              >
+                <Webcam className="w-32 h-32 text-white/5" />
+              </motion.div>
 
               {/* Stacked card deck — next card peeks behind, slides up to take
                   the front, while the old front fades out and a new back fades in. */}

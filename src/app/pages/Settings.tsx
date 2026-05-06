@@ -8,7 +8,7 @@ import { User, Save, ArrowLeft, Mail, Shield, MessageSquare, ChevronRight } from
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { useAuth } from "../contexts/AuthContext";
-import { db } from "../utils/firebase/client";
+import { auth, db } from "../utils/firebase/client";
 import { doc, getDoc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { FetchingBadge } from "../components/skeletons/Skeletons";
@@ -43,7 +43,10 @@ export function Settings() {
   const queryClient = useQueryClient();
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
+  const [email, setEmail] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+
+  const isAdmin = user?.role === "admin";
 
   useEffect(() => {
     if (!user) navigate("/login-selection");
@@ -59,6 +62,7 @@ export function Settings() {
     if (profile) {
       setFirstName(profile.first_name ?? "");
       setLastName(profile.last_name ?? "");
+      setEmail(profile.email ?? "");
     }
   }, [profile]);
 
@@ -67,8 +71,26 @@ export function Settings() {
     setIsSaving(true);
     const trimmedFirst = firstName.trim();
     const trimmedLast = lastName.trim();
+    const trimmedEmail = email.trim().toLowerCase();
     const fullName = `${trimmedFirst} ${trimmedLast}`.trim();
+    const emailChanged = isAdmin && trimmedEmail && trimmedEmail !== profile?.email;
     try {
+      // Email change has to go through the admin SDK (Vercel route).
+      if (emailChanged) {
+        const idToken = await auth.currentUser?.getIdToken();
+        const res = await fetch("/api/admin/update-email", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${idToken ?? ""}`,
+          },
+          body: JSON.stringify({ userId: user.id, newEmail: trimmedEmail }),
+        });
+        const data = await res.json();
+        if (!res.ok || !data?.ok) {
+          throw new Error(data?.error || "Failed to update email.");
+        }
+      }
       await updateDoc(doc(db, "profiles", user.id), {
         first_name: trimmedFirst || null,
         last_name: trimmedLast || null,
@@ -81,7 +103,7 @@ export function Settings() {
       return;
     }
     setIsSaving(false);
-    toast.success("Profile updated.");
+    toast.success(emailChanged ? "Profile and email updated." : "Profile updated.");
     queryClient.invalidateQueries({ queryKey: ["own-profile", user.id] });
     queryClient.invalidateQueries({ queryKey: ["profiles"] });
     queryClient.invalidateQueries({ queryKey: ["admin-user-counts"] });
@@ -90,8 +112,9 @@ export function Settings() {
   if (!user) return null;
 
   const dirty =
-    (firstName.trim() !== (profile?.first_name ?? "")) ||
-    (lastName.trim() !== (profile?.last_name ?? ""));
+    firstName.trim() !== (profile?.first_name ?? "") ||
+    lastName.trim() !== (profile?.last_name ?? "") ||
+    (isAdmin && email.trim().toLowerCase() !== (profile?.email ?? ""));
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-white py-12">
