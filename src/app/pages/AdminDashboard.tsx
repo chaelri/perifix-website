@@ -2,42 +2,88 @@ import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "../components/ui/button";
 import { Card } from "../components/ui/card";
-import { LogOut, Shield, Users, UserCheck, Calendar, Mail, UserPlus, BarChart3, AlertCircle } from "lucide-react";
+import { Shield, Users, UserPlus, BarChart3, AlertCircle, ChevronRight } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
 import { supabase } from "../utils/supabase/client";
 import { useQuery } from "@tanstack/react-query";
-import { StatRowSkeleton, TableRowSkeleton, FetchingBadge } from "../components/skeletons/Skeletons";
+import { FetchingBadge } from "../components/skeletons/Skeletons";
 
-interface UserData {
-  id: string;
-  email: string;
-  name: string;
-  role: "student" | "admin";
-  last_login_at: string | null;
-  created_at: string;
+async function fetchUserCounts() {
+  const { data, error } = await supabase.from("profiles").select("role");
+  if (error) throw error;
+  const total = data?.length ?? 0;
+  const students = data?.filter((p: any) => p.role === "student").length ?? 0;
+  const admins = data?.filter((p: any) => p.role === "admin").length ?? 0;
+  return { total, students, admins };
 }
 
-async function fetchUsers(): Promise<UserData[]> {
-  const { data, error } = await supabase
-    .from("profiles")
-    .select("id, email, full_name, first_name, last_name, role, last_login_at, created_at")
-    .order("created_at", { ascending: false });
+async function fetchPendingAccountRequests(): Promise<number> {
+  const { count, error } = await supabase
+    .from("account_requests")
+    .select("*", { count: "exact", head: true })
+    .eq("status", "pending");
   if (error) throw error;
-  return (data ?? []).map((p: any) => ({
-    id: p.id,
-    email: p.email,
-    name:
-      p.full_name ||
-      [p.first_name, p.last_name].filter(Boolean).join(" ").trim() ||
-      p.email,
-    role: p.role,
-    last_login_at: p.last_login_at,
-    created_at: p.created_at,
-  }));
+  return count ?? 0;
+}
+
+async function fetchOpenSupportRequests(): Promise<number> {
+  const { count, error } = await supabase
+    .from("support_requests")
+    .select("*", { count: "exact", head: true })
+    .in("status", ["pending", "priority"]);
+  if (error) throw error;
+  return count ?? 0;
+}
+
+interface ActionCardProps {
+  title: string;
+  description: string;
+  icon: typeof Shield;
+  iconBg: string;
+  iconFg: string;
+  badge?: string | null;
+  badgeTone?: "green" | "orange" | "neutral";
+  onClick: () => void;
+}
+
+function ActionCard({ title, description, icon: Icon, iconBg, iconFg, badge, badgeTone = "neutral", onClick }: ActionCardProps) {
+  const badgeClasses =
+    badgeTone === "green"
+      ? "bg-green-100 text-green-700"
+      : badgeTone === "orange"
+      ? "bg-orange-100 text-orange-700"
+      : "bg-gray-100 text-gray-700";
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="group text-left bg-white rounded-2xl shadow-sm hover:shadow-lg border border-gray-200 hover:border-gray-300 transition-all p-5 flex flex-col gap-3"
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className={`w-11 h-11 ${iconBg} rounded-xl flex items-center justify-center`}>
+          <Icon className={`w-5 h-5 ${iconFg}`} />
+        </div>
+        {badge && (
+          <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${badgeClasses}`}>
+            {badge}
+          </span>
+        )}
+      </div>
+      <div className="min-w-0">
+        <h3 className="text-base mb-1">{title}</h3>
+        <p className="text-sm text-muted-foreground line-clamp-2">{description}</p>
+      </div>
+      <div className="mt-auto flex items-center gap-1 text-sm text-blue-600 group-hover:gap-2 transition-all">
+        Open
+        <ChevronRight className="w-4 h-4" />
+      </div>
+    </button>
+  );
 }
 
 export function AdminDashboard() {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -46,290 +92,103 @@ export function AdminDashboard() {
     }
   }, [user, navigate]);
 
-  const { data: users = [], isPending, isFetching } = useQuery({
-    queryKey: ["profiles"],
-    queryFn: fetchUsers,
+  const { data: counts, isFetching: countsFetching, isPending: countsPending } = useQuery({
+    queryKey: ["admin-user-counts"],
+    queryFn: fetchUserCounts,
     enabled: user?.role === "admin",
   });
 
-  const handleLogout = async () => {
-    await logout();
-    navigate("/");
-  };
+  const { data: pendingAccounts = 0 } = useQuery({
+    queryKey: ["admin-pending-account-requests"],
+    queryFn: fetchPendingAccountRequests,
+    enabled: user?.role === "admin",
+  });
+
+  const { data: openSupport = 0 } = useQuery({
+    queryKey: ["admin-open-support-requests"],
+    queryFn: fetchOpenSupportRequests,
+    enabled: user?.role === "admin",
+  });
 
   if (!user) return null;
 
-  const studentUsers = users.filter((u) => u.role === "student");
-  const adminUsers = users.filter((u) => u.role === "admin");
-
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return new Intl.DateTimeFormat("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    }).format(date);
-  };
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-amber-50">
-      {/* Header Bar */}
-      <div className="bg-white border-b border-gray-200 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-amber-500 rounded-lg flex items-center justify-center">
-                <Shield className="w-5 h-5 text-white" />
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        {/* Compact heading + counts strip */}
+        <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-6">
+          <div>
+            <div className="flex items-center gap-2 text-amber-600 text-xs font-semibold uppercase tracking-wider mb-1">
+              <Shield className="w-3.5 h-3.5" />
+              Admin Panel
+            </div>
+            <h1 className="mb-0">Dashboard</h1>
+          </div>
+
+          <div className="flex items-center gap-2 flex-wrap">
+            <FetchingBadge isFetching={countsFetching} isPending={countsPending} />
+            <div className="flex items-center divide-x divide-gray-200 rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+              <div className="px-4 py-2">
+                <div className="text-xs text-muted-foreground">Total</div>
+                <div className="text-lg leading-tight">{counts?.total ?? "—"}</div>
               </div>
-              <div>
-                <h3 className="text-sm font-medium text-gray-900">Admin Panel</h3>
-                <p className="text-xs text-gray-500">{user.name}</p>
+              <div className="px-4 py-2">
+                <div className="text-xs text-muted-foreground">Students</div>
+                <div className="text-lg leading-tight">{counts?.students ?? "—"}</div>
+              </div>
+              <div className="px-4 py-2">
+                <div className="text-xs text-muted-foreground">Admins</div>
+                <div className="text-lg leading-tight">{counts?.admins ?? "—"}</div>
               </div>
             </div>
-            <Button
-              onClick={handleLogout}
-              variant="outline"
-              className="border-red-300 text-red-600 hover:bg-red-100"
-            >
-              <LogOut className="w-4 h-4 mr-2" />
-              Logout
-            </Button>
           </div>
         </div>
-      </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Welcome Section */}
-        <Card className="bg-gradient-to-br from-amber-500 to-amber-600 text-white p-8 shadow-xl border-0 mb-8">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-white mb-2">Admin Dashboard</h1>
-              <p className="text-amber-100">
-                Manage users and monitor system activity
-              </p>
-            </div>
-            <Shield className="w-12 h-12 text-amber-200" />
-          </div>
-        </Card>
-
-        {/* Analytics Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <Card className="p-6 shadow-lg hover:shadow-xl transition-shadow border-2 border-blue-100">
-            <div className="flex items-center justify-between mb-4">
-              <div className="w-12 h-12 bg-blue-600/10 rounded-xl flex items-center justify-center">
-                <Users className="w-6 h-6 text-blue-600" />
-              </div>
-            </div>
-            <h3 className="text-3xl mb-1">{users.length}</h3>
-            <p className="text-sm text-muted-foreground">Total Users</p>
-          </Card>
-
-          <Card className="p-6 shadow-lg hover:shadow-xl transition-shadow border-2 border-green-100">
-            <div className="flex items-center justify-between mb-4">
-              <div className="w-12 h-12 bg-green-600/10 rounded-xl flex items-center justify-center">
-                <UserCheck className="w-6 h-6 text-green-600" />
-              </div>
-            </div>
-            <h3 className="text-3xl mb-1">{studentUsers.length}</h3>
-            <p className="text-sm text-muted-foreground">Student Users</p>
-          </Card>
-
-          <Card className="p-6 shadow-lg hover:shadow-xl transition-shadow border-2 border-amber-100">
-            <div className="flex items-center justify-between mb-4">
-              <div className="w-12 h-12 bg-amber-500/10 rounded-xl flex items-center justify-center">
-                <Shield className="w-6 h-6 text-amber-500" />
-              </div>
-            </div>
-            <h3 className="text-3xl mb-1">{adminUsers.length}</h3>
-            <p className="text-sm text-muted-foreground">Admin Users</p>
-          </Card>
+        {/* Action grid — what an admin actually came here to do */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <ActionCard
+            title="Account Requests"
+            description="Review and approve student account requests"
+            icon={UserPlus}
+            iconBg="bg-green-100"
+            iconFg="text-green-600"
+            badge={pendingAccounts > 0 ? `${pendingAccounts} pending` : null}
+            badgeTone="green"
+            onClick={() => navigate("/accounts-list")}
+          />
+          <ActionCard
+            title="User Accounts"
+            description="Edit user information and manage passwords"
+            icon={Users}
+            iconBg="bg-blue-100"
+            iconFg="text-blue-600"
+            onClick={() => navigate("/user-accounts")}
+          />
+          <ActionCard
+            title="Support Requests"
+            description="Manage and respond to user support tickets"
+            icon={AlertCircle}
+            iconBg="bg-orange-100"
+            iconFg="text-orange-600"
+            badge={openSupport > 0 ? `${openSupport} open` : null}
+            badgeTone="orange"
+            onClick={() => navigate("/support-requests")}
+          />
+          <ActionCard
+            title="Analytics"
+            description="View troubleshooting success rates and user feedback"
+            icon={BarChart3}
+            iconBg="bg-purple-100"
+            iconFg="text-purple-600"
+            onClick={() => navigate("/analytics")}
+          />
         </div>
 
-        {/* Account Requests Button */}
-        <Card className="p-6 shadow-lg hover:shadow-xl transition-all border-2 border-green-100 mb-8">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-green-600/10 rounded-xl flex items-center justify-center">
-                <UserPlus className="w-6 h-6 text-green-600" />
-              </div>
-              <div>
-                <h3 className="mb-1">Account Requests</h3>
-                <p className="text-sm text-muted-foreground">
-                  Review and manage pending account requests
-                </p>
-              </div>
-            </div>
-            <Button
-              onClick={() => navigate("/accounts-list")}
-              className="bg-green-600 hover:bg-green-700 text-white hover:text-white shadow-sm"
-            >
-              View Requests
-            </Button>
-          </div>
-        </Card>
-
-        {/* User Accounts Management Button */}
-        <Card className="p-6 shadow-lg hover:shadow-xl transition-all border-2 border-blue-100 mb-8">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-blue-600/10 rounded-xl flex items-center justify-center">
-                <Users className="w-6 h-6 text-blue-600" />
-              </div>
-              <div>
-                <h3 className="mb-1">User Accounts Management</h3>
-                <p className="text-sm text-muted-foreground">
-                  Edit user information and manage passwords
-                </p>
-              </div>
-            </div>
-            <Button
-              onClick={() => navigate("/user-accounts")}
-              className="bg-blue-600 hover:bg-blue-700 text-white hover:text-white shadow-sm"
-            >
-              Manage Users
-            </Button>
-          </div>
-        </Card>
-
-        {/* Analytics Dashboard Button */}
-        <Card className="p-6 shadow-lg hover:shadow-xl transition-all border-2 border-purple-100 mb-8">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-purple-600/10 rounded-xl flex items-center justify-center">
-                <BarChart3 className="w-6 h-6 text-purple-600" />
-              </div>
-              <div>
-                <h3 className="mb-1">Analytics Dashboard</h3>
-                <p className="text-sm text-muted-foreground">
-                  View troubleshooting success rates and user feedback
-                </p>
-              </div>
-            </div>
-            <Button
-              onClick={() => navigate("/analytics")}
-              className="bg-purple-600 hover:bg-purple-700 text-white hover:text-white shadow-sm"
-            >
-              View Analytics
-            </Button>
-          </div>
-        </Card>
-
-        {/* Support Requests Button */}
-        <Card className="p-6 shadow-lg hover:shadow-xl transition-all border-2 border-orange-100 mb-8">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-orange-600/10 rounded-xl flex items-center justify-center">
-                <AlertCircle className="w-6 h-6 text-orange-600" />
-              </div>
-              <div>
-                <h3 className="mb-1">Support Requests</h3>
-                <p className="text-sm text-muted-foreground">
-                  Manage and respond to user support tickets
-                </p>
-              </div>
-            </div>
-            <Button
-              onClick={() => navigate("/support-requests")}
-              className="bg-orange-600 hover:bg-orange-700 text-white hover:text-white shadow-sm"
-            >
-              View Requests
-            </Button>
-          </div>
-        </Card>
-
-        {/* Users Table */}
-        <Card className="shadow-xl border-2 border-gray-200">
-          <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-amber-50">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="mb-1">User Management</h2>
-                <p className="text-sm text-muted-foreground">
-                  View and manage all registered users
-                </p>
-              </div>
-              <FetchingBadge isFetching={isFetching} isPending={isPending} />
-            </div>
-          </div>
-
-          {isPending ? (
-            <div className="p-6 space-y-3">
-              {Array.from({ length: 4 }).map((_, i) => (
-                <TableRowSkeleton key={i} columns={4} />
-              ))}
-            </div>
-          ) : users.length === 0 ? (
-            <div className="p-8 text-center">
-              <Users className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-              <p className="text-muted-foreground">No users found</p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gray-50 border-b border-gray-200">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      User
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Email
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Role
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Last Login
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {users.map((userData) => (
-                    <tr key={userData.id} className="hover:bg-blue-100 transition-colors">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center">
-                          <div className={`w-8 h-8 ${userData.role === "admin" ? "bg-amber-500" : "bg-blue-600"} rounded-lg flex items-center justify-center mr-3`}>
-                            {userData.role === "admin" ? (
-                              <Shield className="w-4 h-4 text-white" />
-                            ) : (
-                              <UserCheck className="w-4 h-4 text-white" />
-                            )}
-                          </div>
-                          <div className="text-sm font-medium text-gray-900">
-                            {userData.name}
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center text-sm text-gray-600">
-                          <Mail className="w-4 h-4 mr-2 text-gray-400" />
-                          {userData.email}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                          userData.role === "admin"
-                            ? "bg-amber-100 text-amber-800"
-                            : "bg-blue-100 text-blue-800"
-                        }`}>
-                          {userData.role}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center text-sm text-gray-600">
-                          <Calendar className="w-4 h-4 mr-2 text-gray-400" />
-                          {userData.last_login_at
-                            ? formatDate(userData.last_login_at)
-                            : "—"}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </Card>
+        <div className="mt-8">
+          <Button variant="outline" onClick={() => navigate("/")}>
+            ← Back to Home
+          </Button>
+        </div>
       </div>
     </div>
   );
