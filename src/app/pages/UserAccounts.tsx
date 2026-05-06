@@ -671,8 +671,8 @@ export function UserAccounts() {
               </div>
               <h2 className="mb-1">Delete this user?</h2>
               <p className="text-sm text-muted-foreground">
-                This permanently removes the account from Firebase Auth and the
-                profile from the database. This cannot be undone.
+                Their account and all profile information will be permanently
+                removed. This can't be undone.
               </p>
             </div>
             <div className="bg-gray-50 border-2 border-gray-200 rounded-xl p-4 mb-6">
