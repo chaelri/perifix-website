@@ -76,6 +76,16 @@ const ICON_MAP: Record<string, ComponentType<{ className?: string }>> = {
 
 const resolveIcon = (name: string) => ICON_MAP[name] ?? HelpCircle;
 
+// Tailwind v4 only emits CSS for classes it can statically see. Device color
+// classes are loaded as strings from Postgres, so we list them here so the
+// scanner keeps them in the build. Mirrors devices.color_class.
+// bg-blue-500 bg-purple-500 bg-teal-500 bg-orange-500 bg-cyan-500
+// bg-indigo-500 bg-green-500 bg-red-500 bg-pink-500
+const TAILWIND_SAFELIST =
+  "bg-blue-500 bg-purple-500 bg-teal-500 bg-orange-500 bg-cyan-500 " +
+  "bg-indigo-500 bg-green-500 bg-red-500 bg-pink-500";
+void TAILWIND_SAFELIST;
+
 interface TroubleshootingProps {
   searchQuery?: string;
 }
@@ -484,7 +494,7 @@ export function Troubleshooting(_props: TroubleshootingProps) {
         {isLoading ? (
           <div className="text-center py-12 text-muted-foreground">Loading guides…</div>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
             <Card className="overflow-hidden">
               <button
                 onClick={() => toggleCategory("input")}
