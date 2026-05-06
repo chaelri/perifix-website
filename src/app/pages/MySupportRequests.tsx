@@ -169,8 +169,8 @@ function TicketRow({ ticket }: { ticket: MyTicket }) {
   };
 
   const messages: ThreadMessage[] =
-    ticket.messages.length > 0
-      ? ticket.messages
+    (ticket.messages ?? []).length > 0
+      ? (ticket.messages ?? [])
       : ticket.last_reply && ticket.last_reply_by
         ? [
             {

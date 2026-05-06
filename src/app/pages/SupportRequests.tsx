@@ -77,7 +77,8 @@ interface ThreadMessage {
 /** Combine the legacy `last_reply` snapshot with the new `messages[]` thread
  *  so old rows still render a single message instead of an empty thread. */
 function threadMessages(r: SupportRequest): ThreadMessage[] {
-  if (r.messages.length > 0) return r.messages;
+  const msgs = r.messages ?? [];
+  if (msgs.length > 0) return msgs;
   if (r.last_reply && r.last_reply_by) {
     return [
       {

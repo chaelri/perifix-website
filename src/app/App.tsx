@@ -164,10 +164,10 @@ export default function App() {
       persistOptions={{
         persister: persister!,
         maxAge: 24 * 60 * 60 * 1000,
-        // Bump buster to invalidate cache caches that stored non-serializable
-        // lucide forwardRef objects as `{}` — those cause React error #130 on
-        // re-render. The new shape stores iconName strings instead.
-        buster: "v2-iconname",
+        // Bump buster to invalidate caches whose shape predates the messages[]
+        // field on support_requests. Old cached tickets have no `messages` key,
+        // so TicketRow.ticket.messages.length throws on render.
+        buster: "v3-messages",
       }}
     >
       <AuthProvider>
