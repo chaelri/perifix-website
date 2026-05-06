@@ -4,6 +4,7 @@ import {
   LogOut,
   Shield,
   Users,
+  User,
   Home as HomeIcon,
   Wrench,
   Info,
