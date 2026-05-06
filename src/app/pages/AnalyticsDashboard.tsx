@@ -37,11 +37,14 @@ async function fetchAnalytics() {
   if (devs.error) throw devs.error;
   if (probs.error) throw probs.error;
 
-  const deviceMap = new Map<string, string>();
-  (devs.data ?? []).forEach((d: any) => deviceMap.set(d.slug, d.name));
+  // Use plain objects (not Map). The react-query cache is persisted to
+  // localStorage as JSON, and Maps round-trip to {} — so on the next page
+  // load deviceMap[...] would throw "g.get is not a function".
+  const deviceMap: Record<string, string> = {};
+  for (const d of (devs.data ?? []) as any[]) deviceMap[d.slug] = d.name;
 
-  const problemMap = new Map<string, string>();
-  (probs.data ?? []).forEach((p: any) => problemMap.set(p.slug, p.title));
+  const problemMap: Record<string, string> = {};
+  for (const p of (probs.data ?? []) as any[]) problemMap[p.slug] = p.title;
 
   return {
     feedback: (fb.data ?? []) as FeedbackRecord[],
@@ -69,8 +72,8 @@ export function AnalyticsDashboard() {
   });
 
   const feedback = data?.feedback ?? [];
-  const deviceMap = data?.deviceMap ?? new Map<string, string>();
-  const problemMap = data?.problemMap ?? new Map<string, string>();
+  const deviceMap: Record<string, string> = data?.deviceMap ?? {};
+  const problemMap: Record<string, string> = data?.problemMap ?? {};
 
   const filteredFeedback = useMemo(() => {
     let filtered = [...feedback];
@@ -95,7 +98,7 @@ export function AnalyticsDashboard() {
 
     const deviceCounts: Record<string, number> = {};
     filteredFeedback.forEach((f) => {
-      const name = deviceMap.get(f.device_slug ?? "") ?? f.device_slug ?? "Unknown";
+      const name = deviceMap[f.device_slug ?? ""] ?? f.device_slug ?? "Unknown";
       deviceCounts[name] = (deviceCounts[name] || 0) + 1;
     });
 
@@ -103,8 +106,8 @@ export function AnalyticsDashboard() {
     filteredFeedback
       .filter((f) => f.helpful)
       .forEach((f) => {
-        const deviceName = deviceMap.get(f.device_slug ?? "") ?? f.device_slug ?? "Unknown";
-        const problemTitle = problemMap.get(f.problem_slug ?? "") ?? f.problem_slug ?? "Unknown";
+        const deviceName = deviceMap[f.device_slug ?? ""] ?? f.device_slug ?? "Unknown";
+        const problemTitle = problemMap[f.problem_slug ?? ""] ?? f.problem_slug ?? "Unknown";
         const key = `${deviceName} - ${problemTitle}`;
         problemCounts[key] = (problemCounts[key] || 0) + 1;
       });
@@ -129,8 +132,8 @@ export function AnalyticsDashboard() {
   const exportData = () => {
     const enriched = filteredFeedback.map((f) => ({
       ...f,
-      device_name: deviceMap.get(f.device_slug ?? "") ?? null,
-      problem_title: problemMap.get(f.problem_slug ?? "") ?? null,
+      device_name: deviceMap[f.device_slug ?? ""] ?? null,
+      problem_title: problemMap[f.problem_slug ?? ""] ?? null,
     }));
     const dataStr = JSON.stringify(enriched, null, 2);
     const dataBlob = new Blob([dataStr], { type: "application/json" });
@@ -194,7 +197,7 @@ export function AnalyticsDashboard() {
                 <option value="all">All Devices</option>
                 {uniqueDeviceSlugs.map((slug) => (
                   <option key={slug} value={slug}>
-                    {deviceMap.get(slug) ?? slug}
+                    {deviceMap[slug] ?? slug}
                   </option>
                 ))}
               </select>
