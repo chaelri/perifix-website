@@ -27,6 +27,13 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // Warm-keep ping. Hit by a GitHub Actions cron every ~5 minutes so the
+    // function stays warm and admins don't pay the 1-3s cold-start penalty
+    // when they Approve. Returns immediately, no auth required.
+    if (req.method === "GET") {
+      return json({ ok: true, warm: true });
+    }
+
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) return json({ error: "Missing Authorization header" }, 401);
 
