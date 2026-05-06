@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { FieldValue } from "firebase-admin/firestore";
-import { adminAuth, adminDb, requireAdminFromHeader, tempPassword } from "./_lib";
+import { adminAuth, adminDb, requireAdminFromHeader, tempPassword } from "./_lib.js";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "POST") {
