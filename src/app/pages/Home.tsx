@@ -2,9 +2,7 @@ import { Link } from "react-router-dom";
 import { Button } from "../components/ui/button";
 import { Search, CheckCircle2, Zap, Eye, Lock, Printer, Mouse, Keyboard, Monitor } from "lucide-react";
 import BuildOutlinedIcon from "@mui/icons-material/BuildOutlined";
-import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 import { useAuth } from "../contexts/AuthContext";
-import logoImage from "../assets/perifix-logo.png";
 
 export function Home() {
   const { user } = useAuth();
@@ -12,49 +10,58 @@ export function Home() {
   return (
     <div className="min-h-screen">
       {/* Hero Section */}
-      <section className="bg-gradient-to-br from-blue-600 via-blue-700 to-blue-800 text-white relative overflow-hidden">
-        <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxwYXRoIGQ9Ik0zNiAxOGMzLjMxNCAwIDYgMi42ODYgNiA2cy0yLjY4NiA2LTYgNi02LTIuNjg2LTYtNiAyLjY4Ni02IDYtNiIgc3Ryb2tlPSJyZ2JhKDI1NSwgMjU1LCAyNTUsIDAuMDUpIiBzdHJva2Utd2lkdGg9IjIiLz48L2c+PC9zdmc+')] opacity-20"></div>
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-24 md:py-32 relative z-10">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-            {/* Left Content */}
-            <div>
-              <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-sm text-white rounded-full mb-6">
-                <BuildOutlinedIcon sx={{ fontSize: 18 }} />
-                <span className="text-sm">Simple • Visual • Effective</span>
-              </div>
-              <h1 className="text-4xl md:text-5xl lg:text-6xl mb-6 text-white">
-                Visual Troubleshooting Guide for Peripherals
-              </h1>
-              <p className="text-xl md:text-2xl mb-8 text-blue-100">
-                Fix device issues step-by-step with clear visual guides. No technical expertise needed.
-              </p>
-              {!user ? (
-                <Link to="/login-selection">
-                  <Button size="lg" className="bg-amber-500 hover:bg-amber-600 text-white shadow-xl hover:shadow-2xl transition-all hover:scale-105">
-                    Learn More
-                    <Search className="ml-2 w-5 h-5" />
-                  </Button>
-                </Link>
-              ) : (
-                <Link to="/troubleshooting">
-                  <Button size="lg" className="bg-amber-500 hover:bg-amber-600 text-white shadow-xl hover:shadow-2xl transition-all hover:scale-105">
-                    Start Troubleshooting
-                    <Search className="ml-2 w-5 h-5" />
-                  </Button>
-                </Link>
-              )}
-            </div>
+      <section className="relative overflow-hidden text-white">
+        {/* Background image */}
+        <div
+          aria-hidden
+          className="absolute inset-0 bg-cover bg-center"
+          style={{
+            backgroundImage:
+              "url('https://images.unsplash.com/photo-1580982330720-bd5e0fed108b?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx0ZWFtJTIwZml4aW5nJTIwY29tcHV0ZXJ8ZW58MXx8fHwxNzYzMzY3ODE1fDA&ixlib=rb-4.1.0&q=80&w=1920&utm_source=figma&utm_medium=referral')",
+          }}
+        />
+        {/* Blue tint overlay */}
+        <div
+          aria-hidden
+          className="absolute inset-0 bg-gradient-to-br from-blue-700/90 via-blue-700/85 to-blue-900/90"
+        />
+        {/* Diagonal line pattern */}
+        <div
+          aria-hidden
+          className="absolute inset-0 opacity-30"
+          style={{
+            backgroundImage:
+              "repeating-linear-gradient(45deg, rgba(255,255,255,0.08) 0px, rgba(255,255,255,0.08) 2px, transparent 2px, transparent 16px)",
+          }}
+        />
 
-            {/* Right Illustration */}
-            <div className="relative">
-              <div className="rounded-3xl overflow-hidden shadow-2xl border-4 border-white/20">
-                <ImageWithFallback
-                  src="https://images.unsplash.com/photo-1580982330720-bd5e0fed108b?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx0ZWFtJTIwZml4aW5nJTIwY29tcHV0ZXJ8ZW58MXx8fHwxNzYzMzY3ODE1fDA&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral"
-                  alt="Troubleshooting illustration"
-                  className="w-full h-auto"
-                />
-              </div>
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-24 md:py-32 relative z-10">
+          <div className="lg:max-w-[75%]">
+            <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-sm text-white rounded-full mb-6">
+              <BuildOutlinedIcon sx={{ fontSize: 18 }} />
+              <span className="text-sm">Simple • Visual • Effective</span>
             </div>
+            <h1 className="text-4xl md:text-5xl lg:text-6xl mb-6 text-white">
+              Visual Troubleshooting Guide for Peripherals
+            </h1>
+            <p className="text-xl md:text-2xl mb-8 text-blue-100">
+              Fix device issues step-by-step with clear visual guides. No technical expertise needed.
+            </p>
+            {!user ? (
+              <Link to="/login-selection">
+                <Button size="lg" className="bg-amber-500 hover:bg-amber-600 text-white shadow-xl hover:shadow-2xl transition-all hover:scale-105">
+                  Learn More
+                  <Search className="ml-2 w-5 h-5" />
+                </Button>
+              </Link>
+            ) : (
+              <Link to="/troubleshooting">
+                <Button size="lg" className="bg-amber-500 hover:bg-amber-600 text-white shadow-xl hover:shadow-2xl transition-all hover:scale-105">
+                  Start Troubleshooting
+                  <Search className="ml-2 w-5 h-5" />
+                </Button>
+              </Link>
+            )}
           </div>
         </div>
       </section>

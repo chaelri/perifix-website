@@ -10,6 +10,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { supabase } from "../utils/supabase/client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { FetchingBadge } from "../components/skeletons/Skeletons";
+import { Skeleton } from "../components/ui/skeleton";
 
 interface ProfileRow {
   id: string;
@@ -107,84 +108,110 @@ export function Settings() {
           </div>
         </div>
 
-        <Card className="p-6 shadow-sm border border-gray-200 space-y-5">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="firstName">First name</Label>
-              <Input
-                id="firstName"
-                value={firstName}
-                onChange={(e) => setFirstName(e.target.value)}
-                className="mt-2"
-                disabled={isPending}
-              />
+        {isPending ? (
+          <Card className="p-6 shadow-sm border border-gray-200 space-y-5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-20" />
+                <Skeleton className="h-10 w-full" />
+              </div>
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-20" />
+                <Skeleton className="h-10 w-full" />
+              </div>
             </div>
-            <div>
-              <Label htmlFor="lastName">Last name</Label>
-              <Input
-                id="lastName"
-                value={lastName}
-                onChange={(e) => setLastName(e.target.value)}
-                className="mt-2"
-                disabled={isPending}
-              />
+            <div className="space-y-2">
+              <Skeleton className="h-4 w-16" />
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-3 w-72" />
             </div>
-          </div>
+            <div className="space-y-2">
+              <Skeleton className="h-4 w-12" />
+              <Skeleton className="h-7 w-20 rounded-full" />
+            </div>
+            <div className="pt-2 border-t border-gray-100 flex justify-end gap-2">
+              <Skeleton className="h-10 w-20" />
+              <Skeleton className="h-10 w-32" />
+            </div>
+          </Card>
+        ) : (
+          <Card className="p-6 shadow-sm border border-gray-200 space-y-5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="firstName">First name</Label>
+                <Input
+                  id="firstName"
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                  className="mt-2"
+                />
+              </div>
+              <div>
+                <Label htmlFor="lastName">Last name</Label>
+                <Input
+                  id="lastName"
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                  className="mt-2"
+                />
+              </div>
+            </div>
 
-          <div>
-            <Label className="flex items-center gap-2">
-              <Mail className="w-3.5 h-3.5" />
-              Email
-            </Label>
-            <Input
-              value={profile?.email ?? ""}
-              readOnly
-              className="mt-2 bg-gray-50 text-gray-600 cursor-not-allowed"
-            />
-            <p className="text-xs text-muted-foreground mt-1">
-              Email is read-only. Contact an admin to change it.
-            </p>
-          </div>
+            <div>
+              <Label className="flex items-center gap-2">
+                <Mail className="w-3.5 h-3.5" />
+                Email
+              </Label>
+              <Input
+                value={profile?.email ?? ""}
+                readOnly
+                className="mt-2 bg-gray-50 text-gray-600 cursor-not-allowed"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Email is read-only. Contact an admin to change it.
+              </p>
+            </div>
 
-          <div>
-            <Label className="flex items-center gap-2">
-              <Shield className="w-3.5 h-3.5" />
-              Role
-            </Label>
-            <div className="mt-2">
-              <span
-                className={`inline-flex px-3 py-1 rounded-full text-xs font-semibold ${
-                  profile?.role === "admin"
-                    ? "bg-amber-100 text-amber-700"
-                    : "bg-blue-100 text-blue-700"
-                }`}
+            <div>
+              <Label className="flex items-center gap-2">
+                <Shield className="w-3.5 h-3.5" />
+                Role
+              </Label>
+              <div className="mt-2">
+                <span
+                  className={`inline-flex px-3 py-1 rounded-full text-xs font-semibold ${
+                    profile?.role === "admin"
+                      ? "bg-amber-100 text-amber-700"
+                      : "bg-blue-100 text-blue-700"
+                  }`}
+                >
+                  {profile?.role === "admin" ? "Admin" : "Student"}
+                </span>
+              </div>
+            </div>
+
+            <div className="pt-2 border-t border-gray-100 flex justify-end gap-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setFirstName(profile?.first_name ?? "");
+                  setLastName(profile?.last_name ?? "");
+                }}
+                disabled={!dirty || isSaving}
               >
-                {profile?.role === "admin" ? "Admin" : "Student"}
-              </span>
+                Reset
+              </Button>
+              <Button
+                onClick={handleSave}
+                disabled={!dirty || isSaving}
+                className="bg-blue-600 hover:bg-blue-700 text-white"
+              >
+                <Save className="w-4 h-4 mr-2" />
+                {isSaving ? "Saving…" : "Save changes"}
+              </Button>
             </div>
-          </div>
-
-          <div className="pt-2 border-t border-gray-100 flex justify-end gap-2">
-            <Button
-              variant="outline"
-              onClick={() => {
-                setFirstName(profile?.first_name ?? "");
-                setLastName(profile?.last_name ?? "");
-              }}
-              disabled={!dirty || isSaving}
-            >
-              Reset
-            </Button>
-            <Button
-              onClick={handleSave}
-              disabled={!dirty || isSaving}
-              className="bg-blue-600 hover:bg-blue-700 text-white"
-            >
-              <Save className="w-4 h-4 mr-2" />
-              {isSaving ? "Saving…" : "Save changes"}
-            </Button>
-          </div>
-        </Card>
+          </Card>
+        )}
       </div>
     </div>
   );

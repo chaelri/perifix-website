@@ -344,52 +344,50 @@ export function Troubleshooting(_props: TroubleshootingProps) {
           </div>
         ) : selectedDevice ? (
           <section>
-            {/* Drill-down header */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
-              <div className="flex items-center gap-3">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={clearSelectedDevice}
-                  className="border-gray-300"
-                >
-                  <ArrowLeft className="w-4 h-4 mr-1.5" />
-                  All devices
-                </Button>
-                <div className="flex items-center gap-3">
-                  <div
-                    className={`w-10 h-10 ${selectedDevice.color} rounded-xl flex items-center justify-center shadow-sm`}
+            {/* Drill-down header — centered, with All devices on its own line */}
+            <div className="mb-4 flex justify-start">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={clearSelectedDevice}
+                className="border-gray-300"
+              >
+                <ArrowLeft className="w-4 h-4 mr-1.5" />
+                All devices
+              </Button>
+            </div>
+            <div className="flex items-center justify-center gap-3 mb-6">
+              <div
+                className={`w-10 h-10 ${selectedDevice.color} rounded-xl flex items-center justify-center shadow-sm`}
+              >
+                {(() => {
+                  const Icon = resolveIcon(selectedDevice.iconName);
+                  return <Icon className="w-5 h-5 text-white" />;
+                })()}
+              </div>
+              <div>
+                <h2 className="mb-0">{selectedDevice.name}</h2>
+                <div className="text-xs text-muted-foreground">
+                  {sortedProblems.length} {sortedProblems.length === 1 ? "problem" : "problems"}
+                  <span className="mx-1.5 text-gray-300">·</span>
+                  <span
+                    className={`uppercase tracking-wider text-[10px] font-semibold ${
+                      selectedDevice.category === "input" ? "text-blue-600" : "text-amber-600"
+                    }`}
                   >
-                    {(() => {
-                      const Icon = resolveIcon(selectedDevice.iconName);
-                      return <Icon className="w-5 h-5 text-white" />;
-                    })()}
-                  </div>
-                  <div>
-                    <h2 className="mb-0">{selectedDevice.name}</h2>
-                    <div className="text-xs text-muted-foreground">
-                      {sortedProblems.length} {sortedProblems.length === 1 ? "problem" : "problems"}
-                      <span className="mx-1.5 text-gray-300">·</span>
-                      <span
-                        className={`uppercase tracking-wider text-[10px] font-semibold ${
-                          selectedDevice.category === "input" ? "text-blue-600" : "text-amber-600"
-                        }`}
-                      >
-                        {selectedDevice.category}
-                      </span>
-                    </div>
-                  </div>
+                    {selectedDevice.category}
+                  </span>
                 </div>
               </div>
             </div>
 
-            {/* Problems list */}
+            {/* Problems list — centered, badge stacked above title */}
             {sortedProblems.length === 0 ? (
               <Card className="p-8 text-center text-muted-foreground">
                 No problems documented for this device yet.
               </Card>
             ) : (
-              <div className="space-y-2 max-w-3xl">
+              <div className="space-y-2 max-w-3xl mx-auto">
                 {sortedProblems.map((problem) => {
                   const badge = SEVERITY_BADGE[problem.severity];
                   return (
@@ -399,13 +397,13 @@ export function Troubleshooting(_props: TroubleshootingProps) {
                       onClick={() => handleExpandGuide(problem, selectedDevice)}
                       className="w-full text-left bg-white rounded-xl border border-gray-200 hover:border-blue-300 hover:shadow-sm transition-all p-4 flex items-center gap-3"
                     >
-                      <span
-                        className={`w-20 text-center px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase border ${badge.color} flex-shrink-0`}
-                      >
-                        {badge.label}
-                      </span>
                       <div className="flex-1 min-w-0">
-                        <div className="font-medium text-gray-900">{problem.title}</div>
+                        <span
+                          className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase border ${badge.color}`}
+                        >
+                          {badge.label}
+                        </span>
+                        <div className="font-medium text-gray-900 mt-1.5">{problem.title}</div>
                         <div className="text-xs text-gray-500 mt-0.5">
                           {problem.steps.length} step{problem.steps.length === 1 ? "" : "s"}
                         </div>
