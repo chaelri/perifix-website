@@ -141,17 +141,52 @@ export function AnalyticsDashboard() {
   }, [feedback]);
 
   const exportData = () => {
-    const enriched = filteredFeedback.map((f) => ({
-      ...f,
-      device_name: deviceMap[f.device_slug ?? ""] ?? null,
-      problem_title: problemMap[f.problem_slug ?? ""] ?? null,
-    }));
-    const dataStr = JSON.stringify(enriched, null, 2);
-    const dataBlob = new Blob([dataStr], { type: "application/json" });
-    const url = URL.createObjectURL(dataBlob);
+    const headers = [
+      "Date",
+      "Time",
+      "Device",
+      "Problem",
+      "Helpful",
+      "Device Slug",
+      "Problem Slug",
+    ];
+
+    const csvCell = (value: unknown): string => {
+      const s = value == null ? "" : String(value);
+      // RFC 4180: quote if it contains comma, quote, or newline; double internal quotes.
+      if (/[",\n\r]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+      return s;
+    };
+
+    const rows = filteredFeedback.map((f) => {
+      const d = new Date(f.created_at);
+      const date = Number.isNaN(d.getTime())
+        ? ""
+        : d.toLocaleDateString("en-CA"); // YYYY-MM-DD
+      const time = Number.isNaN(d.getTime())
+        ? ""
+        : d.toLocaleTimeString("en-GB", { hour12: false });
+      return [
+        date,
+        time,
+        deviceMap[f.device_slug ?? ""] ?? f.device_slug ?? "",
+        problemMap[f.problem_slug ?? ""] ?? f.problem_slug ?? "",
+        f.helpful ? "Yes" : "No",
+        f.device_slug ?? "",
+        f.problem_slug ?? "",
+      ];
+    });
+
+    const csv = [headers, ...rows]
+      .map((r) => r.map(csvCell).join(","))
+      .join("\r\n");
+
+    // BOM so Excel detects UTF-8 correctly (otherwise non-ASCII bytes garble).
+    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `analytics-${new Date().toISOString().split("T")[0]}.json`;
+    link.download = `perifix-analytics-${new Date().toISOString().split("T")[0]}.csv`;
     link.click();
     URL.revokeObjectURL(url);
   };
