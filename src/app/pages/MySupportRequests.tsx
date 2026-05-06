@@ -16,6 +16,7 @@ import { toast } from "sonner";
 import { useAuth } from "../contexts/AuthContext";
 import { auth, db } from "../utils/firebase/client";
 import {
+  arrayUnion,
   collection,
   doc,
   onSnapshot,
@@ -31,6 +32,14 @@ import { ListSkeleton, FetchingBadge } from "../components/skeletons/Skeletons";
 
 type Status = "pending" | "priority" | "resolved" | "waiting_for_response";
 
+interface ThreadMessage {
+  id: string;
+  text: string;
+  at: string;
+  by_uid: string;
+  by_role: "admin" | "student";
+}
+
 interface MyTicket {
   id: string;
   name: string;
@@ -41,6 +50,8 @@ interface MyTicket {
   status: Status;
   source: "contact" | "troubleshooting";
   created_at: string;
+  user_id: string | null;
+  messages: ThreadMessage[];
   last_reply: string | null;
   last_reply_at: string | null;
   last_reply_by: string | null;
@@ -67,7 +78,17 @@ async function fetchMyTickets(uid: string): Promise<MyTicket[]> {
         description: data.description ?? "",
         status: (data.status as Status) ?? "pending",
         source: (data.source as MyTicket["source"]) ?? "contact",
+        user_id: data.user_id ?? null,
         created_at: ts(data.created_at) ?? "",
+        messages: ((data.messages as ThreadMessage[] | undefined) ?? []).map(
+          (m) => ({
+            ...m,
+            at:
+              typeof m.at === "string"
+                ? m.at
+                : ((m.at as unknown) as Timestamp)?.toDate?.().toISOString?.() ?? "",
+          }),
+        ),
         last_reply: data.last_reply ?? null,
         last_reply_at: ts(data.last_reply_at),
         last_reply_by: data.last_reply_by ?? null,
@@ -125,10 +146,15 @@ function TicketRow({ ticket }: { ticket: MyTicket }) {
     setSending(true);
     try {
       const me = auth.currentUser;
+      const message: ThreadMessage = {
+        id: crypto.randomUUID(),
+        text,
+        at: new Date().toISOString(),
+        by_uid: me?.uid ?? "",
+        by_role: "student",
+      };
       await updateDoc(doc(db, "support_requests", ticket.id), {
-        last_reply: text,
-        last_reply_at: serverTimestamp(),
-        last_reply_by: me?.uid ?? null,
+        messages: arrayUnion(message),
         status: "pending",
         updated_at: serverTimestamp(),
       });
@@ -141,6 +167,24 @@ function TicketRow({ ticket }: { ticket: MyTicket }) {
       setSending(false);
     }
   };
+
+  const messages: ThreadMessage[] =
+    ticket.messages.length > 0
+      ? ticket.messages
+      : ticket.last_reply && ticket.last_reply_by
+        ? [
+            {
+              id: "legacy",
+              text: ticket.last_reply,
+              at: ticket.last_reply_at ?? "",
+              by_uid: ticket.last_reply_by,
+              by_role:
+                ticket.last_reply_by === auth.currentUser?.uid
+                  ? "student"
+                  : "admin",
+            },
+          ]
+        : [];
 
   return (
     <Card className="p-5 border border-gray-200">
@@ -170,20 +214,52 @@ function TicketRow({ ticket }: { ticket: MyTicket }) {
         {ticket.description}
       </div>
 
-      {ticket.last_reply && ticket.last_reply_by && ticket.last_reply_by !== auth.currentUser?.uid && (
-        <div className="mt-3 rounded-lg bg-blue-50 border border-blue-200 p-3">
-          <p className="text-xs font-semibold text-blue-700 mb-1">Admin note</p>
-          <p className="text-sm text-blue-900 whitespace-pre-wrap">{ticket.last_reply}</p>
-          <p className="text-[11px] text-blue-700/70 mt-1">
-            {formatDate(ticket.last_reply_at ?? "")}
-          </p>
+      {messages.length > 0 && (
+        <div className="mt-3 space-y-2">
+          {messages.map((m) => {
+            const isMe = m.by_uid === auth.currentUser?.uid;
+            return (
+              <div
+                key={m.id}
+                className={`rounded-lg border p-3 ${
+                  isMe
+                    ? "bg-emerald-50 border-emerald-200"
+                    : "bg-blue-50 border-blue-200"
+                }`}
+              >
+                <div className="flex items-center justify-between mb-1">
+                  <p
+                    className={`text-[10px] font-semibold uppercase tracking-wider ${
+                      isMe ? "text-emerald-700" : "text-blue-700"
+                    }`}
+                  >
+                    {isMe ? "You" : "Admin"}
+                  </p>
+                  <p
+                    className={`text-[10px] ${
+                      isMe ? "text-emerald-700/70" : "text-blue-700/70"
+                    }`}
+                  >
+                    {m.at ? formatDate(m.at) : ""}
+                  </p>
+                </div>
+                <p
+                  className={`text-sm whitespace-pre-wrap ${
+                    isMe ? "text-emerald-900" : "text-blue-900"
+                  }`}
+                >
+                  {m.text}
+                </p>
+              </div>
+            );
+          })}
         </div>
       )}
 
       {ticket.status === "waiting_for_response" && (
         <div className="mt-4 pt-4 border-t border-gray-100">
           <p className="text-sm font-medium text-gray-800 mb-2">
-            Admin asked for more info
+            Admin is waiting for your reply
           </p>
           <Textarea
             placeholder="Type your reply…"
@@ -202,18 +278,6 @@ function TicketRow({ ticket }: { ticket: MyTicket }) {
               {sending ? "Sending…" : "Send reply"}
             </Button>
           </div>
-        </div>
-      )}
-
-      {ticket.last_reply && ticket.last_reply_by === auth.currentUser?.uid && (
-        <div className="mt-3 rounded-lg bg-emerald-50 border border-emerald-200 p-3">
-          <p className="text-xs font-semibold text-emerald-700 mb-1">Your reply</p>
-          <p className="text-sm text-emerald-900 whitespace-pre-wrap">
-            {ticket.last_reply}
-          </p>
-          <p className="text-[11px] text-emerald-700/70 mt-1">
-            {formatDate(ticket.last_reply_at ?? "")}
-          </p>
         </div>
       )}
     </Card>

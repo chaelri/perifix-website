@@ -21,7 +21,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (!target.email) {
       return res.status(400).json({ ok: false, error: "User has no email on file" });
     }
-    const link = await adminAuth.generatePasswordResetLink(target.email);
+    // Origin = the same URL the request came from (e.g. https://perifix.vercel.app)
+    // so the reset link lands on our own /reset-password page, not the
+    // default firebaseapp.com hosted handler. Fallback to env var or a
+    // sensible default if the header is missing.
+    const origin =
+      (req.headers.origin as string | undefined) ||
+      (req.headers["x-forwarded-host"]
+        ? `https://${req.headers["x-forwarded-host"]}`
+        : null) ||
+      process.env.PUBLIC_APP_URL ||
+      "https://perifix.vercel.app";
+    const link = await adminAuth.generatePasswordResetLink(target.email, {
+      url: `${origin}/reset-password`,
+      handleCodeInApp: true,
+    });
     return res.status(200).json({
       ok: true,
       userId: target.uid,

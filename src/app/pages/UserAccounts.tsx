@@ -490,27 +490,20 @@ export function UserAccounts() {
 
               <p className="text-sm text-muted-foreground mb-6">
                 A password-reset link has been emailed to the user. They can click it to set a
-                new password and sign in.
+                new password and sign in. If they don't receive it, copy the link below and
+                send it to them directly.
               </p>
 
               {recoveryLink && (
-                <div className="mb-6 p-3 bg-amber-50 border-2 border-amber-200 rounded-lg text-left">
-                  <Label className="text-xs text-amber-700 block mb-2">
-                    Fallback link (copy + share manually if email doesn't arrive)
-                  </Label>
-                  <div className="flex items-center gap-2">
-                    <code className="text-xs font-mono text-gray-700 break-all flex-1">
-                      {recoveryLink}
-                    </code>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="h-8 w-8 p-0 hover:bg-amber-100 flex-shrink-0"
-                      onClick={copyRecoveryLink}
-                    >
-                      <Copy className="w-4 h-4 text-amber-700" />
-                    </Button>
-                  </div>
+                <div className="mb-6">
+                  <Button
+                    variant="outline"
+                    className="w-full border-amber-300 text-amber-700 hover:bg-amber-50"
+                    onClick={copyRecoveryLink}
+                  >
+                    <Copy className="w-4 h-4 mr-2" />
+                    Copy reset link
+                  </Button>
                 </div>
               )}
 

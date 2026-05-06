@@ -24,6 +24,7 @@ import { toast } from "sonner";
 import { motion, AnimatePresence } from "motion/react";
 import { db } from "../utils/firebase/client";
 import {
+  arrayUnion,
   collection,
   deleteDoc,
   doc,
@@ -35,6 +36,7 @@ import {
   Timestamp,
   updateDoc,
 } from "firebase/firestore";
+import { auth } from "../utils/firebase/client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ListSkeleton, StatRowSkeleton, FetchingBadge } from "../components/skeletons/Skeletons";
 import {
@@ -54,10 +56,100 @@ interface SupportRequest {
   description: string;
   created_at: string;
   status: "pending" | "resolved" | "priority" | "waiting_for_response";
+  source: "contact" | "troubleshooting";
+  user_id: string | null;
+  messages: ThreadMessage[];
+  // Legacy fields, kept for backwards compatibility with old rows that don't
+  // have a messages[] yet. Surface as a synthesised first message in the UI.
   last_reply: string | null;
   last_reply_at: string | null;
   last_reply_by: string | null;
-  source: "contact" | "troubleshooting";
+}
+
+interface ThreadMessage {
+  id: string;
+  text: string;
+  at: string; // ISO
+  by_uid: string;
+  by_role: "admin" | "student";
+}
+
+/** Combine the legacy `last_reply` snapshot with the new `messages[]` thread
+ *  so old rows still render a single message instead of an empty thread. */
+function threadMessages(r: SupportRequest): ThreadMessage[] {
+  if (r.messages.length > 0) return r.messages;
+  if (r.last_reply && r.last_reply_by) {
+    return [
+      {
+        id: "legacy",
+        text: r.last_reply,
+        at: r.last_reply_at ?? "",
+        by_uid: r.last_reply_by,
+        // Heuristic: if the legacy reply was authored by the ticket's user,
+        // it's a student reply; otherwise treat it as an admin note.
+        by_role: r.last_reply_by === r.user_id ? "student" : "admin",
+      },
+    ];
+  }
+  return [];
+}
+
+function ThreadView({
+  messages,
+  adminUid,
+}: {
+  messages: ThreadMessage[];
+  adminUid?: string;
+}) {
+  if (messages.length === 0) {
+    return (
+      <div className="rounded-lg border border-dashed border-gray-200 p-4 text-center text-xs text-gray-500">
+        No messages yet. Send the first reply below.
+      </div>
+    );
+  }
+  return (
+    <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+      {messages.map((m) => {
+        const isMe = adminUid && m.by_uid === adminUid;
+        const isAdmin = m.by_role === "admin";
+        return (
+          <div
+            key={m.id}
+            className={`rounded-lg border p-3 ${
+              isAdmin
+                ? "bg-emerald-50 border-emerald-200"
+                : "bg-blue-50 border-blue-200"
+            }`}
+          >
+            <div className="flex items-center justify-between mb-1">
+              <p
+                className={`text-[10px] font-semibold uppercase tracking-wider ${
+                  isAdmin ? "text-emerald-700" : "text-blue-700"
+                }`}
+              >
+                {isAdmin ? (isMe ? "You (admin)" : "Admin") : "User"}
+              </p>
+              <p
+                className={`text-[10px] ${
+                  isAdmin ? "text-emerald-700/70" : "text-blue-700/70"
+                }`}
+              >
+                {m.at ? new Date(m.at).toLocaleString() : ""}
+              </p>
+            </div>
+            <p
+              className={`text-sm whitespace-pre-wrap ${
+                isAdmin ? "text-emerald-900" : "text-blue-900"
+              }`}
+            >
+              {m.text}
+            </p>
+          </div>
+        );
+      })}
+    </div>
+  );
 }
 
 async function fetchSupportRequests(): Promise<SupportRequest[]> {
@@ -76,7 +168,12 @@ async function fetchSupportRequests(): Promise<SupportRequest[]> {
       description: data.description ?? "",
       status: (data.status as SupportRequest["status"]) ?? "pending",
       source: (data.source as SupportRequest["source"]) ?? "contact",
+      user_id: data.user_id ?? null,
       created_at: ts(data.created_at) ?? "",
+      messages: ((data.messages as ThreadMessage[] | undefined) ?? []).map((m) => ({
+        ...m,
+        at: typeof m.at === "string" ? m.at : ((m.at as unknown) as Timestamp)?.toDate?.().toISOString?.() ?? "",
+      })),
       last_reply: data.last_reply ?? null,
       last_reply_at: ts(data.last_reply_at),
       last_reply_by: data.last_reply_by ?? null,
@@ -101,6 +198,9 @@ export function SupportRequests() {
     description: "",
   });
   const [savingEdit, setSavingEdit] = useState(false);
+  const [adminReply, setAdminReply] = useState("");
+  const [askForResponse, setAskForResponse] = useState(false);
+  const [sendingReply, setSendingReply] = useState(false);
 
   const { data: requests = [], isPending, isFetching } = useQuery({
     queryKey: ["support_requests"],
@@ -154,6 +254,49 @@ export function SupportRequests() {
       priority: requests.filter((r) => r.status === "priority").length,
     };
   }, [requests]);
+
+  const sendAdminReply = async () => {
+    if (!selectedRequest) return;
+    const text = adminReply.trim();
+    if (!text) return;
+    setSendingReply(true);
+    try {
+      const me = auth.currentUser;
+      const message: ThreadMessage = {
+        id: crypto.randomUUID(),
+        text,
+        at: new Date().toISOString(),
+        by_uid: me?.uid ?? "",
+        by_role: "admin",
+      };
+      const newStatus = askForResponse ? "waiting_for_response" : selectedRequest.status;
+      await updateDoc(doc(db, "support_requests", selectedRequest.id), {
+        messages: arrayUnion(message),
+        status: newStatus,
+        updated_at: serverTimestamp(),
+      });
+      // Optimistic UI: append locally without re-fetching.
+      setSelectedRequest((prev) =>
+        prev
+          ? { ...prev, messages: [...prev.messages, message], status: newStatus }
+          : prev,
+      );
+      queryClient.setQueryData<SupportRequest[]>(["support_requests"], (rows) =>
+        (rows ?? []).map((r) =>
+          r.id === selectedRequest.id
+            ? { ...r, messages: [...r.messages, message], status: newStatus }
+            : r,
+        ),
+      );
+      setAdminReply("");
+      setAskForResponse(false);
+      toast.success(askForResponse ? "Reply sent — user can now respond." : "Reply sent.");
+    } catch (err) {
+      toast.error((err as Error).message || "Failed to send reply.");
+    } finally {
+      setSendingReply(false);
+    }
+  };
 
   const updateRequestStatus = async (id: string, status: SupportRequest["status"]) => {
     try {
@@ -680,47 +823,44 @@ export function SupportRequests() {
                         <CheckCircle className="w-4 h-4 mr-2" />
                         Mark as Resolved
                       </Button>
-                      <Button
-                        onClick={() =>
-                          updateRequestStatus(
-                            selectedRequest.id,
-                            "waiting_for_response",
-                          )
-                        }
-                        variant={
-                          selectedRequest.status === "waiting_for_response"
-                            ? "default"
-                            : "outline"
-                        }
-                        className={
-                          selectedRequest.status === "waiting_for_response"
-                            ? "bg-blue-600 hover:bg-blue-700"
-                            : "border-blue-300 text-blue-700 hover:bg-blue-100"
-                        }
-                        title="Asks the user for more info; surfaces a one-shot reply box on their My Support Requests page."
-                      >
-                        <AlertCircle className="w-4 h-4 mr-2" />
-                        Ask for response
-                      </Button>
                     </div>
                   </div>
 
-                  {/* Latest reply from the user, if any */}
-                  {selectedRequest.last_reply && (
-                    <div className="rounded-lg bg-blue-50 border-2 border-blue-200 p-4">
-                      <p className="text-xs font-semibold text-blue-700 uppercase tracking-wider mb-1">
-                        Latest reply from user
-                      </p>
-                      <p className="text-sm text-blue-900 whitespace-pre-wrap">
-                        {selectedRequest.last_reply}
-                      </p>
-                      {selectedRequest.last_reply_at && (
-                        <p className="text-[11px] text-blue-700/70 mt-2">
-                          {new Date(selectedRequest.last_reply_at).toLocaleString()}
-                        </p>
-                      )}
+                  {/* Conversation thread + admin reply composer */}
+                  <div>
+                    <p className="text-sm font-medium text-gray-600 mb-3">Conversation</p>
+                    <ThreadView
+                      messages={threadMessages(selectedRequest)}
+                      adminUid={user?.id}
+                    />
+                    <div className="mt-3 rounded-lg border-2 border-gray-200 bg-white">
+                      <Textarea
+                        placeholder="Write a reply to the user…"
+                        value={adminReply}
+                        onChange={(e) => setAdminReply(e.target.value)}
+                        rows={3}
+                        className="border-0 focus-visible:ring-0 resize-none"
+                      />
+                      <div className="flex items-center justify-between p-2 border-t border-gray-100 bg-gray-50/40">
+                        <label className="flex items-center gap-2 text-xs text-gray-600 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={askForResponse}
+                            onChange={(e) => setAskForResponse(e.target.checked)}
+                          />
+                          Ask user for a response after sending
+                        </label>
+                        <Button
+                          size="sm"
+                          className="bg-blue-600 hover:bg-blue-700 text-white"
+                          onClick={sendAdminReply}
+                          disabled={sendingReply || !adminReply.trim()}
+                        >
+                          {sendingReply ? "Sending…" : "Send reply"}
+                        </Button>
+                      </div>
                     </div>
-                  )}
+                  </div>
                 </div>
               </div>
 
