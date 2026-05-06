@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ComponentType } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "../components/ui/button";
+import { AnimatePresence, motion } from "motion/react";
 import {
   Search,
   CheckCircle2,
@@ -25,6 +26,80 @@ const HERO_PHRASES = [
   "keyboard not detected",
   "webcam stuck on black",
 ];
+
+type HeroSeverity = "Common" | "Moderate" | "Rare";
+
+interface HeroProblem {
+  title: string;
+  steps: string;
+  severity: HeroSeverity;
+}
+
+interface HeroDevice {
+  slug: string;
+  name: string;
+  category: "Input" | "Output";
+  iconBg: string;
+  Icon: ComponentType<{ className?: string }>;
+  problems: HeroProblem[];
+}
+
+const HERO_DEVICES: HeroDevice[] = [
+  {
+    slug: "monitor",
+    name: "Monitor",
+    category: "Output",
+    iconBg: "bg-indigo-500",
+    Icon: Monitor,
+    problems: [
+      { title: "No Display Signal", steps: "2 steps", severity: "Common" },
+      { title: "Blurry Display", steps: "1 step", severity: "Moderate" },
+      { title: "Screen Flickering", steps: "1 step", severity: "Rare" },
+    ],
+  },
+  {
+    slug: "mouse",
+    name: "Mouse",
+    category: "Input",
+    iconBg: "bg-purple-500",
+    Icon: Mouse,
+    problems: [
+      { title: "Cursor Not Moving", steps: "3 steps", severity: "Common" },
+      { title: "Erratic Movement", steps: "2 steps", severity: "Moderate" },
+      { title: "Buttons Not Clicking", steps: "1 step", severity: "Rare" },
+    ],
+  },
+  {
+    slug: "keyboard",
+    name: "Keyboard",
+    category: "Input",
+    iconBg: "bg-blue-500",
+    Icon: Keyboard,
+    problems: [
+      { title: "Keys Not Registering", steps: "2 steps", severity: "Common" },
+      { title: "Wrong Characters", steps: "1 step", severity: "Moderate" },
+      { title: "Keyboard Disconnects", steps: "2 steps", severity: "Rare" },
+    ],
+  },
+  {
+    slug: "printer",
+    name: "Printer",
+    category: "Output",
+    iconBg: "bg-green-500",
+    Icon: Printer,
+    problems: [
+      { title: "Printer Offline", steps: "3 steps", severity: "Common" },
+      { title: "Paper Jam", steps: "2 steps", severity: "Moderate" },
+      { title: "Faded Print", steps: "1 step", severity: "Rare" },
+    ],
+  },
+];
+
+const SEVERITY_STYLE: Record<HeroSeverity, string> = {
+  Common: "bg-emerald-50 text-emerald-700 border-emerald-200",
+  Moderate: "bg-amber-50 text-amber-700 border-amber-200",
+  Rare: "bg-rose-50 text-rose-700 border-rose-200",
+};
 
 function useTypewriter(
   phrases: string[],
@@ -66,6 +141,16 @@ function useTypewriter(
 export function Home() {
   const { user } = useAuth();
   const typed = useTypewriter(HERO_PHRASES);
+  const [heroDeviceIdx, setHeroDeviceIdx] = useState(0);
+
+  useEffect(() => {
+    const t = setInterval(() => {
+      setHeroDeviceIdx((i) => (i + 1) % HERO_DEVICES.length);
+    }, 4500);
+    return () => clearInterval(t);
+  }, []);
+
+  const heroDevice = HERO_DEVICES[heroDeviceIdx];
 
   return (
     <div className="min-h-screen">
@@ -137,60 +222,55 @@ export function Home() {
                 className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-32 h-32 text-white/5"
               />
 
-              {/* Tilted mock card */}
+              {/* Tilted mock card — cycles through devices every ~4.5s */}
               <div className="absolute inset-0 flex items-center justify-center">
-                <div className="rotate-[-3deg] hover:rotate-0 transition-transform duration-500 w-[92%] max-w-md bg-white text-gray-900 rounded-2xl shadow-2xl shadow-blue-900/40 ring-1 ring-white/10 overflow-hidden">
-                  {/* Card header */}
-                  <div className="flex items-center gap-3 p-5 border-b border-gray-100">
-                    <div className="w-11 h-11 bg-indigo-500 rounded-xl flex items-center justify-center shadow-sm">
-                      <Monitor className="w-5 h-5 text-white" />
-                    </div>
-                    <div>
-                      <div className="font-medium leading-tight">Monitor</div>
-                      <div className="text-xs text-gray-500">
-                        3 problems
-                        <span className="mx-1.5 text-gray-300">·</span>
-                        <span className="uppercase tracking-wider text-[10px] font-semibold text-amber-600">
-                          Output
-                        </span>
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={heroDevice.slug}
+                    initial={{ opacity: 0, y: 16, rotate: -8, scale: 0.96 }}
+                    animate={{ opacity: 1, y: 0, rotate: -3, scale: 1 }}
+                    exit={{ opacity: 0, y: -16, rotate: 2, scale: 0.96 }}
+                    transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+                    className="hover:rotate-0 transition-transform duration-500 w-[92%] max-w-md bg-white text-gray-900 rounded-2xl shadow-2xl shadow-blue-900/40 ring-1 ring-white/10 overflow-hidden"
+                  >
+                    {/* Card header */}
+                    <div className="flex items-center gap-3 p-5 border-b border-gray-100">
+                      <div
+                        className={`w-11 h-11 ${heroDevice.iconBg} rounded-xl flex items-center justify-center shadow-sm`}
+                      >
+                        <heroDevice.Icon className="w-5 h-5 text-white" />
+                      </div>
+                      <div>
+                        <div className="font-medium leading-tight">{heroDevice.name}</div>
+                        <div className="text-xs text-gray-500">
+                          {heroDevice.problems.length} problems
+                          <span className="mx-1.5 text-gray-300">·</span>
+                          <span className="uppercase tracking-wider text-[10px] font-semibold text-amber-600">
+                            {heroDevice.category}
+                          </span>
+                        </div>
                       </div>
                     </div>
-                  </div>
 
-                  {/* Problem rows */}
-                  <ul className="divide-y divide-gray-100">
-                    <li className="p-4 flex items-center gap-3">
-                      <div className="flex-1 min-w-0">
-                        <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase border bg-emerald-50 text-emerald-700 border-emerald-200">
-                          Common
-                        </span>
-                        <div className="font-medium mt-1.5">No Display Signal</div>
-                        <div className="text-xs text-gray-500 mt-0.5">2 steps</div>
-                      </div>
-                      <ChevronRight className="w-4 h-4 text-gray-400 shrink-0" />
-                    </li>
-                    <li className="p-4 flex items-center gap-3">
-                      <div className="flex-1 min-w-0">
-                        <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase border bg-amber-50 text-amber-700 border-amber-200">
-                          Moderate
-                        </span>
-                        <div className="font-medium mt-1.5">Blurry Display</div>
-                        <div className="text-xs text-gray-500 mt-0.5">1 step</div>
-                      </div>
-                      <ChevronRight className="w-4 h-4 text-gray-400 shrink-0" />
-                    </li>
-                    <li className="p-4 flex items-center gap-3">
-                      <div className="flex-1 min-w-0">
-                        <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase border bg-rose-50 text-rose-700 border-rose-200">
-                          Rare
-                        </span>
-                        <div className="font-medium mt-1.5">Screen Flickering</div>
-                        <div className="text-xs text-gray-500 mt-0.5">1 step</div>
-                      </div>
-                      <ChevronRight className="w-4 h-4 text-gray-400 shrink-0" />
-                    </li>
-                  </ul>
-                </div>
+                    {/* Problem rows */}
+                    <ul className="divide-y divide-gray-100">
+                      {heroDevice.problems.map((p) => (
+                        <li key={p.title} className="p-4 flex items-center gap-3">
+                          <div className="flex-1 min-w-0">
+                            <span
+                              className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase border ${SEVERITY_STYLE[p.severity]}`}
+                            >
+                              {p.severity}
+                            </span>
+                            <div className="font-medium mt-1.5">{p.title}</div>
+                            <div className="text-xs text-gray-500 mt-0.5">{p.steps}</div>
+                          </div>
+                          <ChevronRight className="w-4 h-4 text-gray-400 shrink-0" />
+                        </li>
+                      ))}
+                    </ul>
+                  </motion.div>
+                </AnimatePresence>
               </div>
             </div>
           </div>
