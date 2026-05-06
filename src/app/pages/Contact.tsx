@@ -61,7 +61,7 @@ export function Contact() {
   return (
     <div className="min-h-screen py-12 bg-gradient-to-br from-blue-50/30 to-amber-50/30">
       {/* Header */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-12">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 mb-12">
         <div className="text-center max-w-3xl mx-auto">
           <div className="inline-block px-4 py-1 bg-primary/10 text-primary rounded-full mb-4">
             We're Here to Help
@@ -74,7 +74,7 @@ export function Contact() {
       </div>
 
       {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
           {/* Contact Details */}
           <div>
@@ -260,7 +260,7 @@ export function Contact() {
       </div>
 
       {/* FAQ Preview */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-20">
+      <section className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 mt-20">
         <div className="bg-gradient-to-br from-blue-600 to-blue-800 rounded-3xl p-12 text-center text-white shadow-xl">
           <h2 className="mb-4 text-white">Before you contact us...</h2>
           <p className="text-xl mb-8 text-blue-100 max-w-2xl mx-auto">

@@ -302,7 +302,7 @@ export function Troubleshooting(_props: TroubleshootingProps) {
 
   return (
     <div className="min-h-screen py-6 bg-gradient-to-br from-blue-50 to-white">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Compact heading row */}
         <div className="flex flex-wrap items-end justify-between gap-3 mb-4">
           <div>
@@ -458,7 +458,7 @@ export function Troubleshooting(_props: TroubleshootingProps) {
       </div>
 
       {/* Still having issues CTA */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-10">
+      <section className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 mt-10">
         <Card className="bg-white border border-slate-200 p-6 md:p-8">
           <div className="text-center max-w-2xl mx-auto">
             <div className="w-12 h-12 bg-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-md">

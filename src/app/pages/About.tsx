@@ -7,7 +7,7 @@ export function About() {
   return (
     <div className="min-h-screen py-12 bg-gradient-to-br from-blue-50/30 to-amber-50/30">
       {/* Header */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-12">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 mb-12">
         <div className="text-center max-w-3xl mx-auto">
           <div className="flex justify-center mb-6">
             <img src={logoImage} alt="PERIFIX Logo" className="w-24 h-24 object-contain" />
@@ -23,7 +23,7 @@ export function About() {
       </div>
 
       {/* Main Content Section */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-20">
+      <section className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 mb-20">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
           {/* Image */}
           <div className="order-2 lg:order-1">
@@ -58,7 +58,7 @@ export function About() {
       </section>
 
       {/* Mission, Vision, Purpose */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-20">
+      <section className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 mb-20">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {/* Mission */}
           <Card className="p-8 text-center bg-white shadow-lg hover:shadow-xl transition-shadow">
@@ -96,7 +96,7 @@ export function About() {
       </section>
 
       {/* Research Approach */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-20">
+      <section className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 mb-20">
         <div className="bg-white rounded-3xl p-12 shadow-lg">
           <div className="text-center max-w-3xl mx-auto mb-12">
             <h2 className="mb-4">Our Research-Based Approach</h2>
@@ -140,7 +140,7 @@ export function About() {
       </section>
 
       {/* Statistics */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <section className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="bg-gradient-to-br from-blue-600 to-blue-800 rounded-3xl p-12 text-white shadow-xl">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
             <div>
