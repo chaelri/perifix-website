@@ -1,94 +1,61 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "../components/ui/button";
 import { Card } from "../components/ui/card";
 import { LogOut, Shield, Users, UserCheck, Calendar, Mail, UserPlus, BarChart3, AlertCircle } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
-import { projectId, publicAnonKey } from "../utils/supabase/info";
+import { supabase } from "../utils/supabase/client";
 import { toast } from "sonner";
 
 interface UserData {
   id: string;
   email: string;
   name: string;
-  role: string;
-  loginTime: string;
+  role: "student" | "admin";
+  last_login_at: string | null;
+  created_at: string;
 }
 
 export function AdminDashboard() {
-  const { user, token, logout } = useAuth();
+  const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [users, setUsers] = useState<UserData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  const serverUrl = `https://${projectId}.supabase.co/functions/v1/make-server-f7e00e4c`;
+  const fetchUsers = useCallback(async () => {
+    setIsLoading(true);
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("id, email, full_name, first_name, last_name, role, last_login_at, created_at")
+      .order("created_at", { ascending: false });
+    if (error) {
+      toast.error(error.message || "Failed to load users.");
+      setUsers([]);
+      setIsLoading(false);
+      return;
+    }
+    const mapped: UserData[] = (data ?? []).map((p: any) => ({
+      id: p.id,
+      email: p.email,
+      name:
+        p.full_name ||
+        [p.first_name, p.last_name].filter(Boolean).join(" ").trim() ||
+        p.email,
+      role: p.role,
+      last_login_at: p.last_login_at,
+      created_at: p.created_at,
+    }));
+    setUsers(mapped);
+    setIsLoading(false);
+  }, []);
 
   useEffect(() => {
     if (!user || user.role !== "admin") {
       navigate("/login-selection");
       return;
     }
-
-    fetchUsers();
-  }, [user, navigate]);
-
-  const fetchUsers = async () => {
-    if (!token) return;
-
-    try {
-      const response = await fetch(`${serverUrl}/users`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to fetch users");
-      }
-
-      const data = await response.json();
-      setUsers(data.users || []);
-    } catch (error) {
-      console.error("Error fetching users:", error);
-      
-      // Use mock data for prototype when server is unavailable
-      const mockUsers: UserData[] = [
-        {
-          id: "1",
-          email: "admin@perifix.site",
-          name: "Admin User",
-          role: "admin",
-          loginTime: new Date().toISOString(),
-        },
-        {
-          id: "2",
-          email: "student1@example.com",
-          name: "John Doe",
-          role: "student",
-          loginTime: new Date(Date.now() - 3600000).toISOString(),
-        },
-        {
-          id: "3",
-          email: "student2@example.com",
-          name: "Jane Smith",
-          role: "student",
-          loginTime: new Date(Date.now() - 7200000).toISOString(),
-        },
-        {
-          id: "4",
-          email: "student3@example.com",
-          name: "Bob Johnson",
-          role: "student",
-          loginTime: new Date(Date.now() - 86400000).toISOString(),
-        },
-      ];
-      
-      setUsers(mockUsers);
-      console.log("Using mock user data for prototype");
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    void fetchUsers();
+  }, [user, navigate, fetchUsers]);
 
   const handleLogout = async () => {
     await logout();
@@ -310,7 +277,7 @@ export function AdminDashboard() {
                       Role
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Login Time
+                      Last Login
                     </th>
                   </tr>
                 </thead>
@@ -349,7 +316,9 @@ export function AdminDashboard() {
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center text-sm text-gray-600">
                           <Calendar className="w-4 h-4 mr-2 text-gray-400" />
-                          {formatDate(userData.loginTime)}
+                          {userData.last_login_at
+                            ? formatDate(userData.last_login_at)
+                            : "—"}
                         </div>
                       </td>
                     </tr>
