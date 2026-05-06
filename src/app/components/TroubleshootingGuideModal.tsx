@@ -2,7 +2,6 @@ import { useEffect, useMemo, useRef, useState, type ComponentType } from "react"
 import {
   X,
   ThumbsUp,
-  ThumbsDown,
   CheckCircle,
   ChevronRight,
   HelpCircle,
@@ -213,7 +212,7 @@ export function TroubleshootingGuideModal({
                 </ol>
               </div>
 
-              <div className="rounded-2xl border-2 border-blue-100 bg-gradient-to-br from-amber-50 to-blue-50 p-4">
+              <div className="rounded-2xl border border-slate-200 bg-white p-4">
                 <h3 className="text-sm text-slate-900 mb-3 font-medium">
                   Did this guide help?
                 </h3>
@@ -226,14 +225,14 @@ export function TroubleshootingGuideModal({
                       <ThumbsUp className="w-4 h-4 mr-2" />
                       Yes, it helped
                     </Button>
-                    <Button
-                      variant="outline"
+                    <button
+                      type="button"
                       onClick={() => handleFeedback(false)}
-                      className="w-full border-2 border-red-300 text-red-700 hover:bg-red-100"
+                      className="w-full text-sm text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-md py-2 transition-colors flex items-center justify-center gap-1.5"
                     >
-                      <ThumbsDown className="w-4 h-4 mr-2" />
-                      No, I need help
-                    </Button>
+                      No — contact support
+                      <ChevronRight className="w-3.5 h-3.5" />
+                    </button>
                   </div>
                 ) : (
                   <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700">
@@ -264,30 +263,30 @@ export function TroubleshootingGuideModal({
                     ref={(el) => {
                       stepRefs.current[step.step] = el;
                     }}
-                    className="rounded-2xl border-2 border-blue-100 bg-gradient-to-br from-blue-50/50 to-white p-5 hover:border-blue-200 transition-colors"
+                    className="rounded-2xl border border-slate-200 bg-white p-5 hover:border-blue-200 transition-colors"
                   >
                     <div className="flex items-start gap-4 mb-4">
-                      <div className="w-11 h-11 bg-gradient-to-br from-blue-600 to-blue-700 rounded-xl flex items-center justify-center shadow-sm flex-shrink-0">
+                      <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-sm flex-shrink-0">
                         <span className="text-white font-medium">
                           {step.step}
                         </span>
                       </div>
                       <div className="flex-1 min-w-0">
-                        <h4 className="text-base sm:text-lg text-slate-900 mb-1">
+                        <h4 className="text-base text-slate-900 mb-1">
                           {step.title}
                         </h4>
-                        <p className="text-sm sm:text-base text-slate-600 leading-relaxed">
+                        <p className="text-sm text-slate-600 leading-relaxed">
                           {step.description}
                         </p>
                       </div>
                     </div>
 
                     {step.image ? (
-                      <div className="rounded-xl overflow-hidden border border-slate-200 bg-slate-50">
+                      <div className="mx-auto max-w-sm rounded-xl overflow-hidden border border-slate-200 bg-slate-50">
                         <ImageWithFallback
                           src={step.image}
                           alt={step.title}
-                          className="w-full max-h-72 object-cover"
+                          className="w-full max-h-44 object-cover"
                         />
                       </div>
                     ) : null}
