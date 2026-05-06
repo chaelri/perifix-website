@@ -43,7 +43,7 @@ export function StudentDashboard() {
             <Button
               onClick={handleLogout}
               variant="outline"
-              className="border-red-300 text-red-600 hover:bg-red-50"
+              className="border-red-300 text-red-600 hover:bg-red-100"
             >
               <LogOut className="w-4 h-4 mr-2" />
               Logout

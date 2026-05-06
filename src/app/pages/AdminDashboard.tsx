@@ -96,7 +96,7 @@ export function AdminDashboard() {
             <Button
               onClick={handleLogout}
               variant="outline"
-              className="border-red-300 text-red-600 hover:bg-red-50"
+              className="border-red-300 text-red-600 hover:bg-red-100"
             >
               <LogOut className="w-4 h-4 mr-2" />
               Logout
@@ -283,7 +283,7 @@ export function AdminDashboard() {
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {users.map((userData) => (
-                    <tr key={userData.id} className="hover:bg-blue-50 transition-colors">
+                    <tr key={userData.id} className="hover:bg-blue-100 transition-colors">
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
                           <div className={`w-8 h-8 ${userData.role === "admin" ? "bg-amber-500" : "bg-blue-600"} rounded-lg flex items-center justify-center mr-3`}>

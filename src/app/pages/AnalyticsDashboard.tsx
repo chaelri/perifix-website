@@ -170,7 +170,7 @@ export function AnalyticsDashboard() {
             <Button
               onClick={exportData}
               variant="outline"
-              className="border-blue-300 text-blue-700 hover:bg-blue-50"
+              className="border-blue-300 text-blue-700 hover:bg-blue-100"
               disabled={filteredFeedback.length === 0}
             >
               <Download className="w-4 h-4 mr-2" />

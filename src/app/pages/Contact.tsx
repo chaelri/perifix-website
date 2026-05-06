@@ -259,7 +259,7 @@ export function Contact() {
               </Button>
             </a>
             <a href="/devices">
-              <Button size="lg" variant="outline" className="bg-white text-primary hover:bg-blue-50 border-white">
+              <Button size="lg" variant="outline" className="bg-white text-primary hover:bg-blue-100 border-white">
                 View All Devices
               </Button>
             </a>

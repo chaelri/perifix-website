@@ -227,7 +227,7 @@ export function ContactSupportModal({
                     type="button"
                     variant="outline"
                     onClick={onClose}
-                    className="flex-1 h-12 border-2 border-gray-300 hover:bg-gray-50 rounded-xl text-base"
+                    className="flex-1 h-12 border-2 border-gray-300 hover:bg-gray-100 rounded-xl text-base"
                   >
                     Cancel
                   </Button>

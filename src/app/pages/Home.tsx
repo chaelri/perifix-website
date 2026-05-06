@@ -230,14 +230,14 @@ export function Home() {
           </p>
           {!user ? (
             <Link to="/login-selection">
-              <Button size="lg" className="bg-white text-blue-600 hover:bg-blue-50 shadow-lg">
+              <Button size="lg" className="bg-white text-blue-600 hover:bg-blue-100 shadow-lg">
                 Get Started
                 <Search className="ml-2 w-5 h-5" />
               </Button>
             </Link>
           ) : (
             <Link to="/troubleshooting">
-              <Button size="lg" className="bg-white text-blue-600 hover:bg-blue-50 shadow-lg">
+              <Button size="lg" className="bg-white text-blue-600 hover:bg-blue-100 shadow-lg">
                 Go to Troubleshooting
                 <Search className="ml-2 w-5 h-5" />
               </Button>

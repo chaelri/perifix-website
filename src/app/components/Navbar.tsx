@@ -68,7 +68,7 @@ export function Navbar() {
                     <Button
                       key={link.path}
                       variant={isActive(link.path) ? "default" : "ghost"}
-                      className={isActive(link.path) ? "bg-amber-500 hover:bg-amber-600 shadow-sm" : "text-amber-600 hover:bg-amber-50 hover:text-black"}
+                      className={isActive(link.path) ? "bg-amber-500 hover:bg-amber-600 shadow-sm" : "text-amber-600 hover:bg-amber-100 hover:text-black"}
                       onClick={() => navigate(link.path)}
                     >
                       <Icon className="w-4 h-4 mr-2" />
@@ -89,7 +89,7 @@ export function Navbar() {
                 <Button
                   variant="outline"
                   size="sm"
-                  className="border-red-300 text-red-600 hover:bg-red-50"
+                  className="border-red-300 text-red-600 hover:bg-red-100"
                   onClick={handleLogout}
                 >
                   <LogOut className="w-4 h-4" />
@@ -159,7 +159,7 @@ export function Navbar() {
                             key={link.path}
                             variant={isActive(link.path) ? "default" : "ghost"}
                             className={`w-full justify-start ${
-                              isActive(link.path) ? "bg-amber-500 hover:bg-amber-600" : "text-amber-600 hover:bg-amber-50"
+                              isActive(link.path) ? "bg-amber-500 hover:bg-amber-600" : "text-amber-600 hover:bg-amber-100"
                             }`}
                             onClick={() => navigate(link.path)}
                           >
@@ -176,7 +176,7 @@ export function Navbar() {
                   {user ? (
                     <Button
                       variant="outline"
-                      className="w-full justify-start border-red-300 text-red-600 hover:bg-red-50"
+                      className="w-full justify-start border-red-300 text-red-600 hover:bg-red-100"
                       onClick={handleLogout}
                     >
                       <LogOut className="w-4 h-4 mr-2" />

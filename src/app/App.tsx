@@ -19,6 +19,8 @@ import { SupportRequests } from "./pages/SupportRequests";
 import { ResetPassword } from "./pages/ResetPassword";
 import { Toaster } from "./components/ui/sonner";
 import { AuthProvider } from "./contexts/AuthContext";
+import { QueryClientProvider } from "@tanstack/react-query";
+import { queryClient } from "./lib/queryClient";
 
 function AppContent() {
   return (
@@ -100,10 +102,12 @@ function AppContent() {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <Router>
-        <AppContent />
-      </Router>
-    </AuthProvider>
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <Router>
+          <AppContent />
+        </Router>
+      </AuthProvider>
+    </QueryClientProvider>
   );
 }

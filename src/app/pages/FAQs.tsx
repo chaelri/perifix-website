@@ -108,7 +108,7 @@ export function FAQs() {
           </p>
           <a
             href="/contact"
-            className="inline-flex items-center justify-center px-6 py-3 bg-white text-blue-600 rounded-lg hover:bg-blue-50 transition-colors shadow-md"
+            className="inline-flex items-center justify-center px-6 py-3 bg-white text-blue-600 rounded-lg hover:bg-blue-100 transition-colors shadow-md"
           >
             Contact Support
           </a>

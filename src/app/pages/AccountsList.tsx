@@ -250,7 +250,7 @@ export function AccountsList() {
                       <Button
                         size="sm"
                         variant="outline"
-                        className="border-red-300 text-red-600 hover:bg-red-50"
+                        className="border-red-300 text-red-600 hover:bg-red-100"
                         onClick={() => handleReject(request)}
                       >
                         <XCircle className="w-4 h-4 mr-1" />

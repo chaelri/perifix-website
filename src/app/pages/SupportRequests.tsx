@@ -293,7 +293,7 @@ export function SupportRequests() {
                     return (
                       <tr
                         key={request.id}
-                        className="hover:bg-blue-50 transition-colors"
+                        className="hover:bg-blue-100 transition-colors"
                       >
                         <td className="px-6 py-4">
                           <div>
@@ -328,7 +328,7 @@ export function SupportRequests() {
                               size="sm"
                               variant="outline"
                               onClick={() => viewRequest(request)}
-                              className="border-blue-300 text-blue-700 hover:bg-blue-50"
+                              className="border-blue-300 text-blue-700 hover:bg-blue-100"
                             >
                               <Eye className="w-4 h-4" />
                             </Button>
@@ -336,7 +336,7 @@ export function SupportRequests() {
                               size="sm"
                               variant="outline"
                               onClick={() => deleteRequest(request.id)}
-                              className="border-red-300 text-red-700 hover:bg-red-50"
+                              className="border-red-300 text-red-700 hover:bg-red-100"
                             >
                               <Trash2 className="w-4 h-4" />
                             </Button>
@@ -452,7 +452,7 @@ export function SupportRequests() {
                         className={
                           selectedRequest.status === "pending"
                             ? "bg-orange-600 hover:bg-orange-700"
-                            : "border-orange-300 text-orange-700 hover:bg-orange-50"
+                            : "border-orange-300 text-orange-700 hover:bg-orange-100"
                         }
                       >
                         <Clock className="w-4 h-4 mr-2" />
@@ -468,7 +468,7 @@ export function SupportRequests() {
                         className={
                           selectedRequest.status === "priority"
                             ? "bg-red-600 hover:bg-red-700"
-                            : "border-red-300 text-red-700 hover:bg-red-50"
+                            : "border-red-300 text-red-700 hover:bg-red-100"
                         }
                       >
                         <Flag className="w-4 h-4 mr-2" />
@@ -484,7 +484,7 @@ export function SupportRequests() {
                         className={
                           selectedRequest.status === "resolved"
                             ? "bg-green-600 hover:bg-green-700"
-                            : "border-green-300 text-green-700 hover:bg-green-50"
+                            : "border-green-300 text-green-700 hover:bg-green-100"
                         }
                       >
                         <CheckCircle className="w-4 h-4 mr-2" />
@@ -508,7 +508,7 @@ export function SupportRequests() {
                   <Button
                     variant="outline"
                     onClick={() => deleteRequest(selectedRequest.id)}
-                    className="flex-1 border-red-300 text-red-700 hover:bg-red-50 h-12 rounded-xl"
+                    className="flex-1 border-red-300 text-red-700 hover:bg-red-100 h-12 rounded-xl"
                   >
                     <Trash2 className="w-4 h-4 mr-2" />
                     Delete Request

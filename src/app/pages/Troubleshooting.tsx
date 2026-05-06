@@ -285,7 +285,7 @@ export function Troubleshooting(_props: TroubleshootingProps) {
         <div key={device.slug} className="border-t border-gray-200 first:border-t-0">
           <button
             onClick={() => toggleDevice(device.slug)}
-            className="w-full flex items-center justify-between p-4 hover:bg-blue-50 transition-colors"
+            className="w-full flex items-center justify-between p-4 hover:bg-blue-100 transition-colors"
           >
             <div className="flex items-center gap-3">
               <div
@@ -355,7 +355,7 @@ export function Troubleshooting(_props: TroubleshootingProps) {
                                   variant="outline"
                                   size="sm"
                                   onClick={() => handleExpandGuide(problem, device)}
-                                  className="border-blue-300 text-blue-700 hover:bg-blue-50 flex-shrink-0 ml-2"
+                                  className="border-blue-300 text-blue-700 hover:bg-blue-100 flex-shrink-0 ml-2"
                                 >
                                   <Maximize2 className="w-4 h-4 mr-1" />
                                   Expand
@@ -411,7 +411,7 @@ export function Troubleshooting(_props: TroubleshootingProps) {
                                       onClick={() =>
                                         handleInlineGuideFeedback(false, device, problem)
                                       }
-                                      className="border-2 border-red-300 text-red-700 hover:bg-red-50 shadow-md hover:shadow-lg transition-all"
+                                      className="border-2 border-red-300 text-red-700 hover:bg-red-100 shadow-md hover:shadow-lg transition-all"
                                     >
                                       <ThumbsDown className="w-4 h-4 mr-2" />
                                       No, I need help
@@ -565,7 +565,7 @@ export function Troubleshooting(_props: TroubleshootingProps) {
                 <Button
                   variant="outline"
                   size="lg"
-                  className="w-full sm:w-auto border-blue-300 hover:bg-blue-50"
+                  className="w-full sm:w-auto border-blue-300 hover:bg-blue-100"
                 >
                   <Home className="mr-2 w-5 h-5" />
                   Back to Home

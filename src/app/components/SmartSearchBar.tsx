@@ -267,7 +267,7 @@ export function SmartSearchBar({
                               onMouseEnter={() => setHoveredIndex(globalIndex)}
                               onMouseLeave={() => setHoveredIndex(-1)}
                               className={`w-full px-4 py-3 flex items-center gap-3 transition-all duration-150 ${
-                                isHovered ? "bg-blue-50" : "hover:bg-gray-50"
+                                isHovered ? "bg-blue-50" : "hover:bg-gray-100"
                               }`}
                             >
                               {/* Device Icon */}

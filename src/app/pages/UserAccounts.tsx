@@ -283,7 +283,7 @@ export function UserAccounts() {
                           <Button
                             size="sm"
                             variant="outline"
-                            className="border-blue-300 hover:bg-blue-50 flex-1 lg:flex-none"
+                            className="border-blue-300 hover:bg-blue-100 flex-1 lg:flex-none"
                             onClick={() => handleEditClick(u)}
                           >
                             <Edit className="w-4 h-4 mr-2" />
@@ -325,7 +325,7 @@ export function UserAccounts() {
 
         <div className="mt-8 text-center">
           <Link to="/admin-dashboard">
-            <Button variant="outline" className="border-blue-300 hover:bg-blue-50">
+            <Button variant="outline" className="border-blue-300 hover:bg-blue-100">
               ← Back to Admin Dashboard
             </Button>
           </Link>

@@ -170,7 +170,7 @@ export function TroubleshootingGuideModal({
                         size="lg"
                         variant="outline"
                         onClick={() => handleFeedback(false)}
-                        className="border-2 border-red-300 text-red-700 hover:bg-red-50 px-8 py-6 text-lg rounded-xl shadow-lg hover:shadow-xl transition-all"
+                        className="border-2 border-red-300 text-red-700 hover:bg-red-100 px-8 py-6 text-lg rounded-xl shadow-lg hover:shadow-xl transition-all"
                       >
                         <ThumbsDown className="w-6 h-6 mr-3" />
                         No, I need help
