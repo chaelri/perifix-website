@@ -108,11 +108,22 @@ export function Navbar() {
                 <button
                   type="button"
                   onClick={() => navigate("/settings")}
-                  className="flex items-center gap-2 px-3 py-1 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
-                  title="Account settings"
+                  className="flex items-center gap-2 px-3 py-1 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors whitespace-nowrap"
+                  title={`${user.name}${user.role === "admin" ? " · Admin" : " · Student"}`}
                 >
-                  <User className="w-4 h-4 text-blue-600" />
-                  <span className="text-sm text-blue-600">{user.name}</span>
+                  <User className="w-4 h-4 text-blue-600 shrink-0" />
+                  <span className="text-sm text-blue-600">
+                    {(user.name || user.email || "").trim().split(/\s+/)[0]}
+                  </span>
+                  <span
+                    className={`px-1.5 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wide ${
+                      user.role === "admin"
+                        ? "bg-amber-500 text-white"
+                        : "bg-blue-600 text-white"
+                    }`}
+                  >
+                    {user.role === "admin" ? "Admin" : "Student"}
+                  </span>
                 </button>
                 <Button
                   variant="outline"
