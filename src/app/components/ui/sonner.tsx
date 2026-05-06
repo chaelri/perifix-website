@@ -17,6 +17,13 @@ const Toaster = ({ ...props }: ToasterProps) => {
           "--normal-border": "var(--border)",
         } as React.CSSProperties
       }
+      toastOptions={{
+        classNames: {
+          // Sonner's default description color washes out to white against
+          // our light popover background — pin it to a readable slate.
+          description: "!text-slate-600",
+        },
+      }}
       {...props}
     />
   );

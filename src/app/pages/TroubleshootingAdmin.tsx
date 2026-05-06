@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { Card } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -502,6 +502,7 @@ function ProblemModal({ deviceId, initial, onClose, onSaved }: ProblemModalProps
 export function TroubleshootingAdmin() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const queryClient = useQueryClient();
   const [expandedDeviceId, setExpandedDeviceId] = useState<number | null>(null);
   const [editingDevice, setEditingDevice] = useState<DeviceRow | null>(null);
@@ -695,9 +696,23 @@ export function TroubleshootingAdmin() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-amber-50 py-12">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-        <Button variant="ghost" className="mb-4" onClick={() => navigate("/admin-dashboard")}>
+        <Button
+          variant="ghost"
+          className="mb-4"
+          onClick={() => {
+            // Use browser history when the user navigated here from somewhere
+            // inside the app (e.g. /troubleshooting → "Manage content"), so
+            // they land back at their actual entry point. location.key is
+            // "default" only on a fresh page load / direct URL hit.
+            if (location.key !== "default") {
+              navigate(-1);
+            } else {
+              navigate("/admin-dashboard");
+            }
+          }}
+        >
           <ArrowLeft className="w-4 h-4 mr-2" />
-          Back to Dashboard
+          Back
         </Button>
 
         <div className="flex items-center justify-between mb-6 gap-4 flex-wrap">
