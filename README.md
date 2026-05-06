@@ -4,7 +4,7 @@ Real, functional Perifix site — evolved from the original Figma Make prototype
 
 - **Repo:** https://github.com/chaelri/perifix-website
 - **Origin:** forked from the [Figma Make prototype](https://github.com/apguano/Perifixwebsiteprototype) (kept history; replaced fake-prototype auth with real Supabase Auth and real DB-backed features).
-- **Live:** https://perifix.vercel.app *(once first deploy lands)*
+- **Live:** https://perifix.site (Vercel-hosted; alias https://perifix.vercel.app)
 - **Backend:** Supabase (Auth + Postgres + Edge Functions), region `ap-southeast-1`.
 - **Frontend:** Vite + React 18 + TypeScript + Tailwind v4 + Radix UI / shadcn pattern + react-router-dom 7.
 

@@ -7,7 +7,7 @@ This file is auto-loaded in any Claude Code session opened anywhere in this repo
 The **real, functional** Perifix website — a visual peripheral-troubleshooting guide. Originally forked from the Figma Make prototype at `apguano/Perifixwebsiteprototype` and now backed by Firebase + hosted on Vercel.
 
 - **Repo:** https://github.com/chaelri/perifix-website (public)
-- **Live target:** https://perifix.vercel.app
+- **Live target:** https://perifix.site (Vercel-hosted; `perifix.vercel.app` still resolves)
 - **Backend:** Firebase project `perifix-website` (Spark/free plan), Firestore + Auth + Storage in `asia-southeast1` (Singapore)
 - **Frontend stack:** Vite 6 + React 18 + TypeScript + Tailwind v4 + Radix UI / shadcn pattern + react-router-dom 7 + TanStack Query
 - **Server-side admin:** Vercel serverless functions under `api/admin/*` (Spark plan = no Cloud Functions, so we use Vercel for invite/reset/create-user flows)
@@ -40,7 +40,7 @@ All three routes verify a Firebase ID token and confirm the caller's `profiles/{
 ## Locked-in decisions
 
 1. ✅ Repo `chaelri/perifix-website`, public.
-2. ✅ Hosting on Vercel (`perifix.vercel.app`).
+2. ✅ Hosting on Vercel; primary domain `perifix.site`, `perifix.vercel.app` still resolves.
 3. ✅ Firebase Auth (email/password) — no hardcoded prototype passwords.
 4. ✅ Account-creation flow: **admins create users directly** in UserAccounts. The old "Request Account" form on LoginSelection has been removed; LoginSelection now points students to /contact.
 5. ✅ No auto-push — Charlie controls every `git push` manually.
