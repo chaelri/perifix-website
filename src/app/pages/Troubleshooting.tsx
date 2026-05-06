@@ -400,7 +400,7 @@ export function Troubleshooting(_props: TroubleshootingProps) {
                       className="w-full text-left bg-white rounded-xl border border-gray-200 hover:border-blue-300 hover:shadow-sm transition-all p-4 flex items-center gap-3"
                     >
                       <span
-                        className={`px-2.5 py-0.5 rounded-full text-[10px] font-semibold uppercase border ${badge.color} flex-shrink-0`}
+                        className={`w-20 text-center px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase border ${badge.color} flex-shrink-0`}
                       >
                         {badge.label}
                       </span>
