@@ -18,7 +18,6 @@ import { StudentLogin } from "./pages/StudentLogin";
 import { AdminLogin } from "./pages/AdminLogin";
 import { StudentDashboard } from "./pages/StudentDashboard";
 import { AdminDashboard } from "./pages/AdminDashboard";
-import { AccountsList } from "./pages/AccountsList";
 import { UserAccounts } from "./pages/UserAccounts";
 import { AnalyticsDashboard } from "./pages/AnalyticsDashboard";
 import { SupportRequests } from "./pages/SupportRequests";
@@ -90,14 +89,6 @@ function AppContent() {
             element={
               <ProtectedRoute>
                 <AdminDashboard />
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="/accounts-list" 
-            element={
-              <ProtectedRoute>
-                <AccountsList />
               </ProtectedRoute>
             } 
           />

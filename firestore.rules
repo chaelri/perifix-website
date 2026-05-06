@@ -27,14 +27,6 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
-    // account_requests — anyone can submit; admins manage
-    match /account_requests/{id} {
-      allow create: if request.resource.data.keys().hasOnly(
-        ['first_name', 'last_name', 'email', 'status', 'created_at']
-      ) && request.resource.data.status == 'pending';
-      allow read, update, delete: if isAdmin();
-    }
-
     // support_requests — anyone can submit; owner reads own; admin all
     match /support_requests/{id} {
       allow create: if true;

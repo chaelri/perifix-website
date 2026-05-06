@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "../components/ui/button";
 import { Card } from "../components/ui/card";
-import { Shield, Users, UserPlus, BarChart3, AlertCircle, ChevronRight, Wrench } from "lucide-react";
+import { Shield, Users, BarChart3, AlertCircle, ChevronRight, Wrench } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
 import { db } from "../utils/firebase/client";
 import { collection, getCountFromServer, getDocs, query, where } from "firebase/firestore";
@@ -19,12 +19,6 @@ async function fetchUserCounts() {
     else students += 1;
   });
   return { total: snap.size, students, admins };
-}
-
-async function fetchPendingAccountRequests(): Promise<number> {
-  const q = query(collection(db, "account_requests"), where("status", "==", "pending"));
-  const snap = await getCountFromServer(q);
-  return snap.data().count;
 }
 
 async function fetchOpenSupportRequests(): Promise<number> {
@@ -96,12 +90,6 @@ export function AdminDashboard() {
     enabled: user?.role === "admin",
   });
 
-  const { data: pendingAccounts = 0 } = useQuery({
-    queryKey: ["admin-pending-account-requests"],
-    queryFn: fetchPendingAccountRequests,
-    enabled: user?.role === "admin",
-  });
-
   const { data: openSupport = 0 } = useQuery({
     queryKey: ["admin-open-support-requests"],
     queryFn: fetchOpenSupportRequests,
@@ -145,18 +133,8 @@ export function AdminDashboard() {
         {/* Action grid — what an admin actually came here to do */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <ActionCard
-            title="Account Requests"
-            description="Review and approve student account requests"
-            icon={UserPlus}
-            iconBg="bg-green-100"
-            iconFg="text-green-600"
-            badge={pendingAccounts > 0 ? `${pendingAccounts} pending` : null}
-            badgeTone="green"
-            onClick={() => navigate("/accounts-list")}
-          />
-          <ActionCard
             title="User Accounts"
-            description="Edit user information and manage passwords"
+            description="Create new accounts, edit info, or reset passwords"
             icon={Users}
             iconBg="bg-blue-100"
             iconFg="text-blue-600"
