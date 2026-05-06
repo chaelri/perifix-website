@@ -351,8 +351,9 @@ export function Troubleshooting(_props: TroubleshootingProps) {
           </div>
         ) : selectedDevice ? (
           <section>
-            {/* Drill-down header — centered, with All devices on its own line */}
-            <div className="mb-4 flex justify-start">
+            {/* Drill-down header — back button left-aligned with the
+                problems list below (same max-w-3xl container). */}
+            <div className="max-w-3xl mx-auto mb-4">
               <Button
                 variant="outline"
                 size="sm"

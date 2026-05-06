@@ -42,6 +42,7 @@ import {
   ref as storageRef,
   uploadBytes,
 } from "firebase/storage";
+import { compressImage } from "../utils/compressImage";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ListSkeleton, FetchingBadge } from "../components/skeletons/Skeletons";
 
@@ -329,22 +330,29 @@ function StepImageField({ value, onChange }: StepImageFieldProps) {
       toast.error("Please select an image file.");
       return;
     }
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error("Image must be under 5 MB.");
+    if (file.size > 10 * 1024 * 1024) {
+      // 10 MB pre-compression cap. Anything larger we won't even try.
+      toast.error("Image must be under 10 MB.");
       return;
     }
     setUploading(true);
     try {
-      const ext = file.name.split(".").pop()?.toLowerCase() || "png";
+      const compressed = await compressImage(file).catch(() => file);
+      const ext = (compressed.name.split(".").pop() ?? "jpg").toLowerCase();
       const path = `step-images/steps/${crypto.randomUUID()}.${ext}`;
       const ref = storageRef(storage, path);
-      await uploadBytes(ref, file, {
-        contentType: file.type,
+      await uploadBytes(ref, compressed, {
+        contentType: compressed.type,
         cacheControl: "public, max-age=31536000",
       });
       const url = await getDownloadURL(ref);
       onChange(url);
-      toast.success("Image uploaded.");
+      const savedKB = Math.max(0, Math.round((file.size - compressed.size) / 1024));
+      toast.success(
+        savedKB > 50
+          ? `Image uploaded (compressed, saved ${savedKB} KB).`
+          : "Image uploaded.",
+      );
     } catch (err: any) {
       toast.error(err?.message ?? "Upload failed.");
     } finally {
