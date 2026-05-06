@@ -22,6 +22,26 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const USER_CACHE_KEY = "perifix-user-cache";
+
+function readCachedUser(): AuthUser | null {
+  try {
+    const raw = localStorage.getItem(USER_CACHE_KEY);
+    return raw ? (JSON.parse(raw) as AuthUser) : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeCachedUser(u: AuthUser | null) {
+  try {
+    if (u) localStorage.setItem(USER_CACHE_KEY, JSON.stringify(u));
+    else localStorage.removeItem(USER_CACHE_KEY);
+  } catch {
+    // localStorage unavailable (private mode, quota) — non-fatal.
+  }
+}
+
 async function loadUserFromSession(session: Session): Promise<AuthUser> {
   // 10s safety net so we never hang the UI if the network stalls.
   const query = supabase
@@ -56,7 +76,10 @@ async function loadUserFromSession(session: Session): Promise<AuthUser> {
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
-  const [user, setUser] = useState<AuthUser | null>(null);
+  // Hydrate from cache synchronously so refresh feels seamless and
+  // ProtectedRoute doesn't bounce the user to /login-selection while we wait
+  // for the profile fetch.
+  const [user, setUser] = useState<AuthUser | null>(() => readCachedUser());
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -66,13 +89,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!mounted) return;
       const sess = data.session;
       setSession(sess);
-      if (sess) {
-        try {
-          const u = await loadUserFromSession(sess);
-          if (mounted) setUser(u);
-        } catch (err) {
-          console.error("Failed to load profile:", err);
-        }
+
+      if (!sess) {
+        // No session — clear any stale cache.
+        if (mounted) setUser(null);
+        writeCachedUser(null);
+        if (mounted) setIsLoading(false);
+        return;
+      }
+
+      try {
+        const u = await loadUserFromSession(sess);
+        if (mounted) setUser(u);
+        writeCachedUser(u);
+      } catch (err) {
+        console.error("[auth] Initial profile load failed (keeping cached user):", err);
+        // Keep whatever cached user we hydrated with — the session is still
+        // valid, this was just a profile-fetch hiccup.
       }
       if (mounted) setIsLoading(false);
     });
@@ -81,9 +114,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!mounted) return;
       setSession(sess);
 
-      // Real sign-out: drop the user.
+      // Real sign-out: drop the user and clear the cache.
       if (event === "SIGNED_OUT" || !sess) {
         setUser(null);
+        writeCachedUser(null);
         return;
       }
 
@@ -98,6 +132,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         const u = await loadUserFromSession(sess);
         if (mounted) setUser(u);
+        writeCachedUser(u);
       } catch (err) {
         console.error("[auth] Failed to load profile (keeping existing session):", err);
         // Intentionally NOT clearing user — the session is valid; this is
@@ -126,6 +161,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     setSession(data.session);
     setUser(u);
+    writeCachedUser(u);
 
     supabase
       .from("profiles")
@@ -142,6 +178,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await supabase.auth.signOut();
     setSession(null);
     setUser(null);
+    writeCachedUser(null);
   };
 
   return (
