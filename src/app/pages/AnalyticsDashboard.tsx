@@ -12,6 +12,13 @@ import {
 import { Button } from "../components/ui/button";
 import { Calendar as DateCalendar } from "../components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "../components/ui/popover";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../components/ui/select";
 import { useAuth } from "../contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { db } from "../utils/firebase/client";
@@ -312,21 +319,20 @@ export function AnalyticsDashboard() {
               </PopoverContent>
             </Popover>
 
-            <div className="flex items-center gap-2 bg-white rounded-xl border-2 border-gray-200 px-4 py-2">
-              <BarChart3 className="w-4 h-4 text-gray-500" />
-              <select
-                value={selectedDevice}
-                onChange={(e) => setSelectedDevice(e.target.value)}
-                className="text-sm bg-transparent border-none focus:outline-none cursor-pointer"
-              >
-                <option value="all">All Devices</option>
+            <Select value={selectedDevice} onValueChange={setSelectedDevice}>
+              <SelectTrigger className="w-[180px] bg-white border-2 border-gray-200 rounded-xl h-auto py-2 gap-2">
+                <BarChart3 className="w-4 h-4 text-gray-500" />
+                <SelectValue placeholder="All devices" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All devices</SelectItem>
                 {uniqueDeviceSlugs.map((slug) => (
-                  <option key={slug} value={slug}>
+                  <SelectItem key={slug} value={slug}>
                     {deviceMap[slug] ?? slug}
-                  </option>
+                  </SelectItem>
                 ))}
-              </select>
-            </div>
+              </SelectContent>
+            </Select>
           </div>
         </div>
 

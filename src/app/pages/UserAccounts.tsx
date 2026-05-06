@@ -32,6 +32,13 @@ import {
 import { Link, useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ListSkeleton, FetchingBadge } from "../components/skeletons/Skeletons";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../components/ui/select";
 
 interface ProfileRow {
   id: string;
@@ -574,20 +581,23 @@ export function UserAccounts() {
               </div>
               <div>
                 <Label htmlFor="cf_role">Role</Label>
-                <select
-                  id="cf_role"
+                <Select
                   value={createForm.role}
-                  onChange={(e) =>
+                  onValueChange={(value) =>
                     setCreateForm({
                       ...createForm,
-                      role: e.target.value as "student" | "admin",
+                      role: value as "student" | "admin",
                     })
                   }
-                  className="mt-1 w-full h-10 px-3 rounded-md border border-input bg-background text-sm"
                 >
-                  <option value="student">Student</option>
-                  <option value="admin">Admin</option>
-                </select>
+                  <SelectTrigger id="cf_role" className="mt-1">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="student">Student</SelectItem>
+                    <SelectItem value="admin">Admin</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
             <div className="flex gap-2 mt-6">

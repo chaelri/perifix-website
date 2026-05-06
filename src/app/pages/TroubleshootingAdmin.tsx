@@ -45,6 +45,13 @@ import {
 import { compressImage } from "../utils/compressImage";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ListSkeleton, FetchingBadge } from "../components/skeletons/Skeletons";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../components/ui/select";
 
 type Severity = "common" | "moderate" | "rare";
 type Category = "input" | "output";
@@ -242,15 +249,15 @@ function DeviceModal({ initial, onClose, onSaved }: DeviceModalProps) {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label htmlFor="d-category">Category</Label>
-              <select
-                id="d-category"
-                value={category}
-                onChange={(e) => setCategory(e.target.value as Category)}
-                className="mt-1 w-full h-9 px-3 rounded-md border border-gray-200 bg-white"
-              >
-                <option value="input">Input</option>
-                <option value="output">Output</option>
-              </select>
+              <Select value={category} onValueChange={(v) => setCategory(v as Category)}>
+                <SelectTrigger id="d-category" className="mt-1">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="input">Input</SelectItem>
+                  <SelectItem value="output">Output</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div>
               <Label htmlFor="d-order">Display order</Label>
@@ -266,18 +273,18 @@ function DeviceModal({ initial, onClose, onSaved }: DeviceModalProps) {
 
           <div>
             <Label htmlFor="d-icon">Icon</Label>
-            <select
-              id="d-icon"
-              value={iconName}
-              onChange={(e) => setIconName(e.target.value)}
-              className="mt-1 w-full h-9 px-3 rounded-md border border-gray-200 bg-white"
-            >
-              {ICON_OPTIONS.map((i) => (
-                <option key={i} value={i}>
-                  {i}
-                </option>
-              ))}
-            </select>
+            <Select value={iconName} onValueChange={setIconName}>
+              <SelectTrigger id="d-icon" className="mt-1">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {ICON_OPTIONS.map((i) => (
+                  <SelectItem key={i} value={i}>
+                    {i}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div>
@@ -577,16 +584,16 @@ function ProblemModal({ deviceSlug, initial, onClose, onSaved }: ProblemModalPro
             </div>
             <div>
               <Label htmlFor="p-severity">Severity</Label>
-              <select
-                id="p-severity"
-                value={severity}
-                onChange={(e) => setSeverity(e.target.value as Severity)}
-                className="mt-1 w-full h-9 px-3 rounded-md border border-gray-200 bg-white"
-              >
-                <option value="common">Common</option>
-                <option value="moderate">Moderate</option>
-                <option value="rare">Rare</option>
-              </select>
+              <Select value={severity} onValueChange={(v) => setSeverity(v as Severity)}>
+                <SelectTrigger id="p-severity" className="mt-1">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="common">Common</SelectItem>
+                  <SelectItem value="moderate">Moderate</SelectItem>
+                  <SelectItem value="rare">Rare</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
 

@@ -37,6 +37,13 @@ import {
 } from "firebase/firestore";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ListSkeleton, StatRowSkeleton, FetchingBadge } from "../components/skeletons/Skeletons";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../components/ui/select";
 
 interface SupportRequest {
   id: string;
@@ -343,20 +350,19 @@ export function SupportRequests() {
           </div>
 
           {/* Status Filter */}
-          <div className="flex items-center gap-2 bg-white rounded-xl border-2 border-gray-200 px-4">
-            <Filter className="w-4 h-4 text-gray-500" />
-            <select
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-              className="text-sm bg-transparent border-none focus:outline-none cursor-pointer h-12"
-            >
-              <option value="all">All Status</option>
-              <option value="pending">Pending</option>
-              <option value="priority">Priority</option>
-              <option value="waiting_for_response">Waiting for response</option>
-              <option value="resolved">Resolved</option>
-            </select>
-          </div>
+          <Select value={filterStatus} onValueChange={setFilterStatus}>
+            <SelectTrigger className="w-[200px] bg-white border-2 border-gray-300 rounded-xl h-12 gap-2">
+              <Filter className="w-4 h-4 text-gray-500" />
+              <SelectValue placeholder="All status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All status</SelectItem>
+              <SelectItem value="pending">Pending</SelectItem>
+              <SelectItem value="priority">Priority</SelectItem>
+              <SelectItem value="waiting_for_response">Waiting for response</SelectItem>
+              <SelectItem value="resolved">Resolved</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
 
         {/* Requests Table */}
