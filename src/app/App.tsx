@@ -16,6 +16,7 @@ import { AccountsList } from "./pages/AccountsList";
 import { UserAccounts } from "./pages/UserAccounts";
 import { AnalyticsDashboard } from "./pages/AnalyticsDashboard";
 import { SupportRequests } from "./pages/SupportRequests";
+import { ResetPassword } from "./pages/ResetPassword";
 import { Toaster } from "./components/ui/sonner";
 import { AuthProvider } from "./contexts/AuthContext";
 
@@ -40,6 +41,7 @@ function AppContent() {
           <Route path="/login-selection" element={<LoginSelection />} />
           <Route path="/student-login" element={<StudentLogin />} />
           <Route path="/admin-login" element={<AdminLogin />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
           <Route 
             path="/student-dashboard" 
             element={

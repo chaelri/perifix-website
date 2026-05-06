@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { Button } from "../components/ui/button";
 import { Search, CheckCircle2, Zap, Eye, Lock, Printer, Mouse, Keyboard, Monitor } from "lucide-react";
+import BuildOutlinedIcon from "@mui/icons-material/BuildOutlined";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 import { useAuth } from "../contexts/AuthContext";
 import logoImage from "figma:asset/ab58eeaa257e876782c9f32bf8bd702e735f6d24.png";
@@ -17,8 +18,9 @@ export function Home() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             {/* Left Content */}
             <div>
-              <div className="inline-block px-4 py-2 bg-white/10 backdrop-blur-sm text-white rounded-full mb-6">
-                <span className="text-sm">🔧 Simple • Visual • Effective</span>
+              <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-sm text-white rounded-full mb-6">
+                <BuildOutlinedIcon sx={{ fontSize: 18 }} />
+                <span className="text-sm">Simple • Visual • Effective</span>
               </div>
               <h1 className="text-4xl md:text-5xl lg:text-6xl mb-6 text-white">
                 Visual Troubleshooting Guide for Peripherals

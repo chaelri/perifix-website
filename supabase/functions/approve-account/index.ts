@@ -1,9 +1,7 @@
-// approve-account — admin-only Edge Function that creates a Supabase Auth user
-// from an account_requests row, sets a generated temp password, and flips the
-// request to status='approved'. Returns the temp password to the caller.
-//
-// Auth: caller must pass their session JWT in the Authorization header. The
-// function verifies the caller's profiles.role = 'admin' before doing anything.
+// approve-account — admin-only Edge Function that converts an account_requests
+// row into a real Supabase Auth user via inviteUserByEmail. The user receives
+// a magic-link email; they click it, land on /reset-password, set their own
+// password, and are signed in.
 
 import { createClient } from "npm:@supabase/supabase-js@2.49.8";
 
@@ -21,16 +19,6 @@ function json(body: unknown, status = 200) {
     status,
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
-}
-
-function generateTempPassword(): string {
-  // 16 chars, alphanumeric, ambiguous chars (0/O/1/l/I) excluded.
-  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789";
-  const bytes = new Uint8Array(16);
-  crypto.getRandomValues(bytes);
-  let out = "";
-  for (const b of bytes) out += chars[b % chars.length];
-  return out;
 }
 
 Deno.serve(async (req) => {
@@ -63,6 +51,7 @@ Deno.serve(async (req) => {
 
     const body = await req.json().catch(() => ({}));
     const requestId = body?.requestId;
+    const redirectTo = typeof body?.redirectTo === "string" ? body.redirectTo : undefined;
     if (!requestId) return json({ error: "Missing requestId" }, 400);
 
     const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
@@ -80,21 +69,21 @@ Deno.serve(async (req) => {
       return json({ error: `Request already ${reqRow.status}` }, 400);
     }
 
-    const tempPassword = generateTempPassword();
     const fullName = `${reqRow.first_name} ${reqRow.last_name}`.trim();
 
-    const { data: created, error: createErr } = await admin.auth.admin.createUser({
-      email: reqRow.email,
-      password: tempPassword,
-      email_confirm: true,
-      user_metadata: {
-        first_name: reqRow.first_name,
-        last_name: reqRow.last_name,
-        full_name: fullName,
+    const { data: invited, error: inviteErr } = await admin.auth.admin.inviteUserByEmail(
+      reqRow.email,
+      {
+        data: {
+          first_name: reqRow.first_name,
+          last_name: reqRow.last_name,
+          full_name: fullName,
+        },
+        redirectTo,
       },
-    });
-    if (createErr || !created.user) {
-      return json({ error: createErr?.message ?? "Failed to create user" }, 500);
+    );
+    if (inviteErr || !invited.user) {
+      return json({ error: inviteErr?.message ?? "Failed to send invite" }, 500);
     }
 
     const { error: updateErr } = await admin
@@ -111,8 +100,8 @@ Deno.serve(async (req) => {
 
     return json({
       ok: true,
-      tempPassword,
-      userId: created.user.id,
+      method: "invite_email",
+      userId: invited.user.id,
       email: reqRow.email,
       name: fullName,
     });

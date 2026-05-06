@@ -144,19 +144,19 @@ export function About() {
         <div className="bg-gradient-to-br from-blue-600 to-blue-800 rounded-3xl p-12 text-white shadow-xl">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
             <div>
-              <div className="text-4xl mb-2 text-accent">9</div>
+              <div className="text-4xl mb-2 text-amber-300">9</div>
               <p className="text-blue-100">Devices Supported</p>
             </div>
             <div>
-              <div className="text-4xl mb-2 text-accent">50+</div>
+              <div className="text-4xl mb-2 text-amber-300">50+</div>
               <p className="text-blue-100">Troubleshooting Steps</p>
             </div>
             <div>
-              <div className="text-4xl mb-2 text-accent">100%</div>
+              <div className="text-4xl mb-2 text-amber-300">100%</div>
               <p className="text-blue-100">Research-Based</p>
             </div>
             <div>
-              <div className="text-4xl mb-2 text-accent">24/7</div>
+              <div className="text-4xl mb-2 text-amber-300">24/7</div>
               <p className="text-blue-100">Available Online</p>
             </div>
           </div>

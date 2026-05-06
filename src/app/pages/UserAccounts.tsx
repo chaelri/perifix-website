@@ -11,6 +11,8 @@ import {
   Key,
   Mail,
   Search,
+  Copy,
+  CheckCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "../contexts/AuthContext";
@@ -43,7 +45,7 @@ export function UserAccounts() {
   const [resettingId, setResettingId] = useState<string | null>(null);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [selectedUserForPassword, setSelectedUserForPassword] = useState<ProfileRow | null>(null);
-  const [generatedPassword, setGeneratedPassword] = useState("");
+  const [recoveryLink, setRecoveryLink] = useState<string | null>(null);
 
   const loadUsers = useCallback(async () => {
     setIsLoading(true);
@@ -111,34 +113,32 @@ export function UserAccounts() {
   const handleGeneratePassword = async (u: ProfileRow) => {
     setResettingId(u.id);
     try {
+      const redirectTo = `${window.location.origin}/reset-password`;
       const { data, error } = await supabase.functions.invoke("reset-user-password", {
-        body: { userId: u.id },
+        body: { userId: u.id, redirectTo },
       });
       if (error) {
-        toast.error(error.message || "Failed to reset password.");
+        toast.error(error.message || "Failed to send recovery email.");
         return;
       }
-      if (!data?.tempPassword) {
-        toast.error(data?.error || "Password reset failed.");
+      if (!data?.ok) {
+        toast.error(data?.error || "Failed to send recovery email.");
         return;
       }
-      setGeneratedPassword(data.tempPassword);
+      setRecoveryLink(data.actionLink ?? null);
       setSelectedUserForPassword(u);
       setShowPasswordModal(true);
     } catch (err: any) {
-      toast.error(err?.message ?? "Failed to reset password.");
+      toast.error(err?.message ?? "Failed to send recovery email.");
     } finally {
       setResettingId(null);
     }
   };
 
-  const handleSendPassword = () => {
-    if (selectedUserForPassword) {
-      // TODO: replace with real email send.
-      toast.success(`Credentials ready for ${selectedUserForPassword.email}`);
-      setShowPasswordModal(false);
-      setSelectedUserForPassword(null);
-      setGeneratedPassword("");
+  const copyRecoveryLink = () => {
+    if (recoveryLink) {
+      navigator.clipboard.writeText(recoveryLink);
+      toast.success("Recovery link copied to clipboard.");
     }
   };
 
@@ -334,12 +334,12 @@ export function UserAccounts() {
 
       {showPasswordModal && selectedUserForPassword && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 px-4">
-          <div className="bg-white rounded-3xl p-8 shadow-2xl border-2 border-amber-200 max-w-md w-full">
+          <div className="bg-white rounded-3xl p-8 shadow-2xl border-2 border-blue-200 max-w-md w-full">
             <div className="text-center">
-              <div className="w-16 h-16 bg-amber-500 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
-                <Key className="w-8 h-8 text-white" />
+              <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
+                <Mail className="w-8 h-8 text-white" />
               </div>
-              <h2 className="mb-4">Temporary Password Set</h2>
+              <h2 className="mb-4">Recovery Email Sent</h2>
 
               <div className="mb-6 p-4 bg-gray-100 rounded-lg border-2 border-gray-200">
                 <Label className="text-xs text-gray-500 block mb-2">User</Label>
@@ -349,41 +349,46 @@ export function UserAccounts() {
                       .filter(Boolean)
                       .join(" ")}
                 </p>
-                <p className="text-sm text-blue-600 mb-4">{selectedUserForPassword.email}</p>
-
-                <Label className="text-xs text-gray-500 block mb-2">New Password</Label>
-                <div className="bg-white p-3 rounded-lg border-2 border-amber-300">
-                  <code className="text-lg font-mono text-amber-600 break-all">
-                    {generatedPassword}
-                  </code>
-                </div>
+                <p className="text-sm text-blue-600">{selectedUserForPassword.email}</p>
               </div>
 
               <p className="text-sm text-muted-foreground mb-6">
-                The user's password has been reset. Share this password with them securely; they
-                should change it on next login.
+                A password-reset link has been emailed to the user. They can click it to set a
+                new password and sign in.
               </p>
 
-              <div className="flex gap-3">
-                <Button
-                  className="flex-1 bg-amber-500 hover:bg-amber-600 text-white"
-                  onClick={handleSendPassword}
-                >
-                  <Mail className="w-4 h-4 mr-2" />
-                  Mark as Sent
-                </Button>
-                <Button
-                  variant="outline"
-                  className="flex-1"
-                  onClick={() => {
-                    setShowPasswordModal(false);
-                    setSelectedUserForPassword(null);
-                    setGeneratedPassword("");
-                  }}
-                >
-                  Close
-                </Button>
-              </div>
+              {recoveryLink && (
+                <div className="mb-6 p-3 bg-amber-50 border-2 border-amber-200 rounded-lg text-left">
+                  <Label className="text-xs text-amber-700 block mb-2">
+                    Fallback link (copy + share manually if email doesn't arrive)
+                  </Label>
+                  <div className="flex items-center gap-2">
+                    <code className="text-xs font-mono text-gray-700 break-all flex-1">
+                      {recoveryLink}
+                    </code>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-8 w-8 p-0 hover:bg-amber-100 flex-shrink-0"
+                      onClick={copyRecoveryLink}
+                    >
+                      <Copy className="w-4 h-4 text-amber-700" />
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              <Button
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                onClick={() => {
+                  setShowPasswordModal(false);
+                  setSelectedUserForPassword(null);
+                  setRecoveryLink(null);
+                }}
+              >
+                <CheckCircle className="w-4 h-4 mr-2" />
+                Done
+              </Button>
             </div>
           </div>
         </div>

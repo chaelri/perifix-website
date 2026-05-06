@@ -1,6 +1,8 @@
-// reset-user-password — admin-only Edge Function that generates a new
-// temporary password for an existing user and applies it via the auth admin
-// API. Returns the new password so the admin can share it manually.
+// reset-user-password — admin-only Edge Function that triggers a password
+// recovery email for an existing user. The user clicks the link in the email,
+// lands on /reset-password, and sets a new password. We use generateLink with
+// type='recovery' which both sends the email AND returns the link, so the
+// admin can fall back to copy/share if SMTP is rate-limited.
 
 import { createClient } from "npm:@supabase/supabase-js@2.49.8";
 
@@ -18,15 +20,6 @@ function json(body: unknown, status = 200) {
     status,
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
-}
-
-function generateTempPassword(): string {
-  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789";
-  const bytes = new Uint8Array(16);
-  crypto.getRandomValues(bytes);
-  let out = "";
-  for (const b of bytes) out += chars[b % chars.length];
-  return out;
 }
 
 Deno.serve(async (req) => {
@@ -59,6 +52,7 @@ Deno.serve(async (req) => {
 
     const body = await req.json().catch(() => ({}));
     const userId = body?.userId;
+    const redirectTo = typeof body?.redirectTo === "string" ? body.redirectTo : undefined;
     if (!userId) return json({ error: "Missing userId" }, 400);
 
     const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
@@ -73,24 +67,26 @@ Deno.serve(async (req) => {
     if (fetchErr) return json({ error: fetchErr.message }, 500);
     if (!target) return json({ error: "User not found" }, 404);
 
-    const tempPassword = generateTempPassword();
-
-    const { error: updateErr } = await admin.auth.admin.updateUserById(userId, {
-      password: tempPassword,
+    const { data: linkData, error: linkErr } = await admin.auth.admin.generateLink({
+      type: "recovery",
+      email: target.email,
+      options: redirectTo ? { redirectTo } : undefined,
     });
-    if (updateErr) {
-      return json({ error: updateErr.message }, 500);
+    if (linkErr) {
+      return json({ error: linkErr.message }, 500);
     }
 
     return json({
       ok: true,
-      tempPassword,
+      method: "recovery_email",
       userId: target.id,
       email: target.email,
       name:
         target.full_name ||
         [target.first_name, target.last_name].filter(Boolean).join(" ").trim() ||
         target.email,
+      // Fallback link in case email didn't deliver — admin can paste it for the user.
+      actionLink: linkData.properties?.action_link ?? null,
     });
   } catch (err) {
     return json({ error: (err as Error).message }, 500);

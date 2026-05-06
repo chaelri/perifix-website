@@ -18,9 +18,8 @@
     "noFallthroughCasesInSwitch": true,
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
-    "baseUrl": ".",
     "paths": {
-      "@/*": ["src/app/*"]
+      "@/*": ["./src/app/*"]
     }
   },
   "include": ["src"],

@@ -12,10 +12,7 @@ import {
   XCircle,
   Clock,
   Mail,
-  Key,
   User,
-  Copy,
-  Send,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -31,7 +28,6 @@ interface AccountRequest {
 interface ApprovalDetails {
   email: string;
   name: string;
-  temporaryPassword: string;
 }
 
 export function AccountsList() {
@@ -70,22 +66,19 @@ export function AccountsList() {
   const handleApprove = async (request: AccountRequest) => {
     setApprovingId(request.id);
     try {
+      const redirectTo = `${window.location.origin}/reset-password`;
       const { data, error } = await supabase.functions.invoke("approve-account", {
-        body: { requestId: request.id },
+        body: { requestId: request.id, redirectTo },
       });
       if (error) {
         toast.error(error.message || "Failed to approve account.");
         return;
       }
-      if (!data?.tempPassword) {
-        toast.error(data?.error || "Approval failed — no password returned.");
+      if (!data?.ok) {
+        toast.error(data?.error || "Approval failed.");
         return;
       }
-      setApprovalDetails({
-        email: data.email,
-        name: data.name,
-        temporaryPassword: data.tempPassword,
-      });
+      setApprovalDetails({ email: data.email, name: data.name });
       setShowApprovalDialog(true);
       await loadRequests();
     } catch (err: any) {
@@ -106,19 +99,6 @@ export function AccountsList() {
     }
     toast.success("Request rejected.");
     await loadRequests();
-  };
-
-  const handleSendApprovalEmail = () => {
-    if (approvalDetails) {
-      // TODO: replace with real email send (Edge Function + SMTP).
-      toast.success(`Credentials ready to share with ${approvalDetails.email}.`);
-      setShowApprovalDialog(false);
-    }
-  };
-
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
-    toast.success("Copied to clipboard!");
   };
 
   const getStatusBadge = (status: string) => {
@@ -289,11 +269,12 @@ export function AccountsList() {
             <div className="bg-white rounded-3xl p-8 shadow-2xl border-2 border-green-200 max-w-md w-full animate-in fade-in zoom-in duration-300">
               <div className="text-center">
                 <div className="w-20 h-20 bg-green-600 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg">
-                  <CheckCircle className="w-10 h-10 text-white" />
+                  <Mail className="w-10 h-10 text-white" />
                 </div>
-                <h2 className="mb-2">Account Approved Successfully!</h2>
+                <h2 className="mb-2">Invite Email Sent!</h2>
                 <p className="text-muted-foreground mb-6">
-                  User credentials have been generated and are ready to send.
+                  An invitation email has been sent. The user can click the link to set their
+                  password and sign in.
                 </p>
               </div>
 
@@ -305,7 +286,9 @@ export function AccountsList() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-xs text-muted-foreground mb-1">Full Name</p>
-                      <p className="font-medium text-blue-900 break-words">{approvalDetails.name}</p>
+                      <p className="font-medium text-blue-900 break-words">
+                        {approvalDetails.name}
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -316,55 +299,23 @@ export function AccountsList() {
                       <Mail className="w-5 h-5 text-white" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs text-muted-foreground mb-1">Email Address</p>
-                      <p className="font-medium text-blue-900 break-words">{approvalDetails.email}</p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-amber-50 border-2 border-amber-200 rounded-xl p-4">
-                  <div className="flex items-start gap-3">
-                    <div className="w-10 h-10 bg-amber-500 rounded-lg flex items-center justify-center flex-shrink-0">
-                      <Key className="w-5 h-5 text-white" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs text-muted-foreground mb-1">Temporary Password</p>
-                      <div className="flex items-center gap-2">
-                        <p className="font-mono font-medium text-amber-900 break-all flex-1">
-                          {approvalDetails.temporaryPassword}
-                        </p>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="h-8 w-8 p-0 hover:bg-amber-100"
-                          onClick={() => copyToClipboard(approvalDetails.temporaryPassword)}
-                        >
-                          <Copy className="w-4 h-4 text-amber-700" />
-                        </Button>
-                      </div>
+                      <p className="text-xs text-muted-foreground mb-1">Sent To</p>
+                      <p className="font-medium text-blue-900 break-words">
+                        {approvalDetails.email}
+                      </p>
                     </div>
                   </div>
                 </div>
               </div>
 
-              <div className="flex gap-3">
-                <Button
-                  className="flex-1 bg-green-600 hover:bg-green-700 text-white shadow-lg"
-                  size="lg"
-                  onClick={handleSendApprovalEmail}
-                >
-                  <Send className="w-4 h-4 mr-2" />
-                  Send Credentials
-                </Button>
-                <Button
-                  variant="outline"
-                  size="lg"
-                  onClick={() => setShowApprovalDialog(false)}
-                  className="border-gray-300"
-                >
-                  Close
-                </Button>
-              </div>
+              <Button
+                className="w-full bg-green-600 hover:bg-green-700 text-white shadow-lg"
+                size="lg"
+                onClick={() => setShowApprovalDialog(false)}
+              >
+                <CheckCircle className="w-4 h-4 mr-2" />
+                Done
+              </Button>
             </div>
           </div>
         )}
