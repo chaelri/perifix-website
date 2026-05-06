@@ -146,7 +146,7 @@ export function Home() {
   useEffect(() => {
     const t = setInterval(() => {
       setHeroDeviceIdx((i) => (i + 1) % HERO_DEVICES.length);
-    }, 4500);
+    }, 6500);
     return () => clearInterval(t);
   }, []);
 
@@ -242,7 +242,7 @@ export function Home() {
                           : { opacity: 0.55, y: 28, scale: 0.93, rotate: -7, zIndex: 1 }
                       }
                       exit={{ opacity: 0, y: -32, scale: 1.04, rotate: 1, zIndex: 3 }}
-                      transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+                      transition={{ duration: 1.2, ease: [0.22, 1, 0.36, 1] }}
                       className="absolute w-[92%] max-w-md bg-white text-gray-900 rounded-2xl shadow-2xl shadow-blue-900/40 ring-1 ring-white/10 overflow-hidden"
                     >
                       {/* Card header */}
