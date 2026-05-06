@@ -28,6 +28,12 @@ export function Navbar() {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
+
+  const goAndClose = (path: string) => {
+    navigate(path);
+    setMobileOpen(false);
+  };
 
   const navLinks: { name: string; path: string; icon: IconType }[] = [
     { name: "Home", path: "/", icon: HomeIcon },
@@ -45,6 +51,7 @@ export function Navbar() {
   const isActive = (path: string) => location.pathname === path;
 
   const handleLogout = async () => {
+    setMobileOpen(false);
     setIsLoggingOut(true);
     await logout();
     navigate("/");
@@ -124,7 +131,7 @@ export function Navbar() {
 
           {/* Mobile Menu */}
           <div className="md:hidden">
-            <Sheet>
+            <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
               <SheetTrigger>
                 <div className="p-2 hover:bg-primary/10 rounded-md transition-colors">
                   <Menu className="w-6 h-6" />
@@ -198,7 +205,7 @@ export function Navbar() {
                         <li key={link.path}>
                           <button
                             type="button"
-                            onClick={() => navigate(link.path)}
+                            onClick={() => goAndClose(link.path)}
                             className={`group w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-colors ${
                               active
                                 ? "bg-blue-600 text-white shadow-sm"
@@ -275,7 +282,7 @@ export function Navbar() {
                   ) : (
                     <Button
                       className="w-full justify-center gap-2 bg-amber-500 hover:bg-amber-600 text-white shadow-sm"
-                      onClick={() => navigate("/login-selection")}
+                      onClick={() => goAndClose("/login-selection")}
                     >
                       <LogIn className="w-4 h-4" />
                       Login
