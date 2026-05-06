@@ -1,12 +1,71 @@
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "../components/ui/button";
-import { Search, CheckCircle2, Zap, Eye, Lock, Printer, Mouse, Keyboard, Monitor } from "lucide-react";
+import {
+  Search,
+  CheckCircle2,
+  Zap,
+  Eye,
+  Lock,
+  Printer,
+  Mouse,
+  Keyboard,
+  Monitor,
+  Headphones,
+  Webcam,
+  ChevronRight,
+} from "lucide-react";
 import BuildOutlinedIcon from "@mui/icons-material/BuildOutlined";
-import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 import { useAuth } from "../contexts/AuthContext";
+
+const HERO_PHRASES = [
+  "mouse not working",
+  "printer offline",
+  "no display signal",
+  "keyboard not detected",
+  "webcam stuck on black",
+];
+
+function useTypewriter(
+  phrases: string[],
+  typeSpeed = 70,
+  deleteSpeed = 35,
+  holdMs = 1400,
+) {
+  const [text, setText] = useState("");
+  const [idx, setIdx] = useState(0);
+  const [deleting, setDeleting] = useState(false);
+
+  useEffect(() => {
+    const phrase = phrases[idx];
+    if (!deleting && text === phrase) {
+      const t = setTimeout(() => setDeleting(true), holdMs);
+      return () => clearTimeout(t);
+    }
+    if (deleting && text === "") {
+      setDeleting(false);
+      setIdx((i) => (i + 1) % phrases.length);
+      return;
+    }
+    const t = setTimeout(
+      () => {
+        setText(
+          deleting
+            ? phrase.slice(0, text.length - 1)
+            : phrase.slice(0, text.length + 1),
+        );
+      },
+      deleting ? deleteSpeed : typeSpeed,
+    );
+    return () => clearTimeout(t);
+  }, [text, idx, deleting, phrases, typeSpeed, deleteSpeed, holdMs]);
+
+  return text;
+}
 
 export function Home() {
   const { user } = useAuth();
+  const typed = useTypewriter(HERO_PHRASES);
 
   return (
     <div className="min-h-screen">
@@ -24,9 +83,19 @@ export function Home() {
               <h1 className="text-4xl md:text-5xl lg:text-6xl mb-6 text-white">
                 Visual Troubleshooting Guide for Peripherals
               </h1>
-              <p className="text-xl md:text-2xl mb-8 text-blue-100">
+              <p className="text-xl md:text-2xl mb-6 text-blue-100">
                 Fix device issues step-by-step with clear visual guides. No technical expertise needed.
               </p>
+
+              {/* Animated search teaser */}
+              <div className="mb-8 max-w-md flex items-center gap-3 bg-white/95 rounded-full shadow-2xl shadow-blue-900/30 px-5 py-3.5 ring-1 ring-white/40">
+                <Search className="w-5 h-5 text-blue-600 shrink-0" />
+                <span className="text-gray-800 truncate">
+                  {typed}
+                  <span className="inline-block w-0.5 h-4 align-middle ml-0.5 bg-blue-600 animate-pulse" />
+                </span>
+              </div>
+
               {!user ? (
                 <Link to="/login-selection">
                   <Button size="lg" className="bg-amber-500 hover:bg-amber-600 text-white shadow-xl hover:shadow-2xl transition-all hover:scale-105">
@@ -44,14 +113,84 @@ export function Home() {
               )}
             </div>
 
-            {/* Right Illustration */}
-            <div className="relative">
-              <div className="rounded-3xl overflow-hidden shadow-2xl border-4 border-white/20">
-                <ImageWithFallback
-                  src="https://images.unsplash.com/photo-1580982330720-bd5e0fed108b?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx0ZWFtJTIwZml4aW5nJTIwY29tcHV0ZXJ8ZW58MXx8fHwxNzYzMzY3ODE1fDA&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral"
-                  alt="Troubleshooting illustration"
-                  className="w-full h-auto"
-                />
+            {/* Right: troubleshooting card mock + floating peripheral icons */}
+            <div className="relative h-[420px] hidden lg:block">
+              {/* Floating peripheral icons */}
+              <Mouse
+                aria-hidden
+                className="absolute top-2 left-0 w-12 h-12 text-white/20 -rotate-12"
+              />
+              <Keyboard
+                aria-hidden
+                className="absolute top-6 right-2 w-14 h-14 text-white/15 rotate-6"
+              />
+              <Printer
+                aria-hidden
+                className="absolute bottom-8 left-2 w-12 h-12 text-white/20 rotate-12"
+              />
+              <Headphones
+                aria-hidden
+                className="absolute bottom-2 right-6 w-12 h-12 text-white/15 -rotate-6"
+              />
+              <Webcam
+                aria-hidden
+                className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-32 h-32 text-white/5"
+              />
+
+              {/* Tilted mock card */}
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="rotate-[-3deg] hover:rotate-0 transition-transform duration-500 w-[92%] max-w-md bg-white text-gray-900 rounded-2xl shadow-2xl shadow-blue-900/40 ring-1 ring-white/10 overflow-hidden">
+                  {/* Card header */}
+                  <div className="flex items-center gap-3 p-5 border-b border-gray-100">
+                    <div className="w-11 h-11 bg-indigo-500 rounded-xl flex items-center justify-center shadow-sm">
+                      <Monitor className="w-5 h-5 text-white" />
+                    </div>
+                    <div>
+                      <div className="font-medium leading-tight">Monitor</div>
+                      <div className="text-xs text-gray-500">
+                        3 problems
+                        <span className="mx-1.5 text-gray-300">·</span>
+                        <span className="uppercase tracking-wider text-[10px] font-semibold text-amber-600">
+                          Output
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Problem rows */}
+                  <ul className="divide-y divide-gray-100">
+                    <li className="p-4 flex items-center gap-3">
+                      <div className="flex-1 min-w-0">
+                        <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase border bg-emerald-50 text-emerald-700 border-emerald-200">
+                          Common
+                        </span>
+                        <div className="font-medium mt-1.5">No Display Signal</div>
+                        <div className="text-xs text-gray-500 mt-0.5">2 steps</div>
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-gray-400 shrink-0" />
+                    </li>
+                    <li className="p-4 flex items-center gap-3">
+                      <div className="flex-1 min-w-0">
+                        <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase border bg-amber-50 text-amber-700 border-amber-200">
+                          Moderate
+                        </span>
+                        <div className="font-medium mt-1.5">Blurry Display</div>
+                        <div className="text-xs text-gray-500 mt-0.5">1 step</div>
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-gray-400 shrink-0" />
+                    </li>
+                    <li className="p-4 flex items-center gap-3">
+                      <div className="flex-1 min-w-0">
+                        <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase border bg-rose-50 text-rose-700 border-rose-200">
+                          Rare
+                        </span>
+                        <div className="font-medium mt-1.5">Screen Flickering</div>
+                        <div className="text-xs text-gray-500 mt-0.5">1 step</div>
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-gray-400 shrink-0" />
+                    </li>
+                  </ul>
+                </div>
               </div>
             </div>
           </div>
