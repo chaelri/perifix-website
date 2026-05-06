@@ -268,8 +268,24 @@ export function Home() {
                       }
                       exit={{ opacity: 0, y: -32, scale: 1.04, rotate: 1, zIndex: 3 }}
                       transition={{ duration: 1.2, ease: [0.22, 1, 0.36, 1] }}
-                      className="absolute w-[92%] max-w-md bg-white text-gray-900 rounded-2xl shadow-2xl shadow-blue-900/40 ring-1 ring-white/10 overflow-hidden"
+                      className="absolute w-[92%] max-w-md"
                     >
+                      {/* Inner layer: continuous gentle wobble so the deck
+                          looks alive between swaps, matching the floating
+                          peripheral icons. Front + back use slightly
+                          different durations so they never sync up. */}
+                      <motion.div
+                        animate={{
+                          y: [0, -5, 0, 4, 0],
+                          rotate: [0, 1.4, 0, -1.4, 0],
+                        }}
+                        transition={{
+                          duration: role === "front" ? 6 : 7.4,
+                          repeat: Infinity,
+                          ease: "easeInOut",
+                        }}
+                        className="bg-white text-gray-900 rounded-2xl shadow-2xl shadow-blue-900/40 ring-1 ring-white/10 overflow-hidden"
+                      >
                       {/* Card header */}
                       <div className="flex items-center gap-3 p-5 border-b border-gray-100">
                         <div
@@ -306,6 +322,7 @@ export function Home() {
                           </li>
                         ))}
                       </ul>
+                      </motion.div>
                     </motion.div>
                   ))}
                 </AnimatePresence>
