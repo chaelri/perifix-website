@@ -134,86 +134,88 @@ function ThreadView({
     );
   }
   return (
-    <div className="space-y-2 overflow-y-auto pr-1 flex-1 min-h-0">
+    <div className="space-y-3 overflow-y-auto pr-1 flex-1 min-h-0">
       {merged.map((m) => {
-        const isMe = adminUid && m.by_uid === adminUid;
+        const isMe = !!adminUid && m.by_uid === adminUid;
         const isAdmin = m.by_role === "admin";
         const isHidden = m.hidden;
         const canToggle = m.id !== "legacy" && (onHide || onUnhide);
+
+        // Color scheme:
+        //   - "Me" (whoever is logged in)  → emerald, right-aligned
+        //   - Other admin                 → indigo, left-aligned
+        //   - Student                     → blue, left-aligned
+        //   - Hidden                      → gray dashed, alignment preserved
+        const tone = isHidden
+          ? {
+              bubble: "bg-gray-50 border-gray-300 border-dashed",
+              role: "text-gray-600",
+              meta: "text-gray-500",
+              text: "text-gray-700",
+            }
+          : isMe
+            ? {
+                bubble: "bg-emerald-50 border-emerald-200",
+                role: "text-emerald-700",
+                meta: "text-emerald-700/70",
+                text: "text-emerald-900",
+              }
+            : isAdmin
+              ? {
+                  bubble: "bg-indigo-50 border-indigo-200",
+                  role: "text-indigo-700",
+                  meta: "text-indigo-700/70",
+                  text: "text-indigo-900",
+                }
+              : {
+                  bubble: "bg-blue-50 border-blue-200",
+                  role: "text-blue-700",
+                  meta: "text-blue-700/70",
+                  text: "text-blue-900",
+                };
+
+        const roleLabel = isAdmin ? (isMe ? "You (admin)" : "Admin") : "User";
+
         return (
           <div
             key={`${isHidden ? "h" : "v"}-${m.id}`}
-            className={`group rounded-lg border p-3 transition-opacity ${
-              isHidden
-                ? "bg-gray-50 border-gray-300 border-dashed opacity-80"
-                : isAdmin
-                  ? "bg-emerald-50 border-emerald-200"
-                  : "bg-blue-50 border-blue-200"
-            }`}
+            className={`group flex flex-col ${isMe ? "items-end" : "items-start"}`}
           >
-            <div className="flex items-center justify-between mb-1 gap-2">
-              <div className="flex items-center gap-2 min-w-0">
-                <p
-                  className={`text-[10px] font-semibold uppercase tracking-wider ${
-                    isHidden
-                      ? "text-gray-600"
-                      : isAdmin
-                        ? "text-emerald-700"
-                        : "text-blue-700"
-                  }`}
+            <div className={`flex items-center gap-2 mb-1 px-1 ${tone.meta}`}>
+              <span className={`text-[10px] font-semibold uppercase tracking-wider ${tone.role}`}>
+                {roleLabel}
+              </span>
+              {isHidden && (
+                <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold uppercase tracking-wider bg-gray-200 text-gray-700">
+                  Hidden from student
+                </span>
+              )}
+              <span className="text-[10px]">
+                {m.at ? new Date(m.at).toLocaleString() : ""}
+              </span>
+              {canToggle && (
+                <button
+                  type="button"
+                  onClick={() => (isHidden ? onUnhide?.(m) : onHide?.(m))}
+                  className="text-gray-500 hover:text-gray-900 opacity-0 group-hover:opacity-100 transition-opacity"
+                  title={isHidden ? "Unhide (visible to student again)" : "Hide from student"}
+                  aria-label={isHidden ? "Unhide message" : "Hide message"}
                 >
-                  {isAdmin ? (isMe ? "You (admin)" : "Admin") : "User"}
-                </p>
-                {isHidden && (
-                  <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold uppercase tracking-wider bg-gray-200 text-gray-700">
-                    Hidden from student
-                  </span>
-                )}
-              </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <p
-                  className={`text-[10px] ${
-                    isHidden
-                      ? "text-gray-500"
-                      : isAdmin
-                        ? "text-emerald-700/70"
-                        : "text-blue-700/70"
-                  }`}
-                >
-                  {m.at ? new Date(m.at).toLocaleString() : ""}
-                </p>
-                {canToggle && (
-                  <button
-                    type="button"
-                    onClick={() =>
-                      isHidden ? onUnhide?.(m) : onHide?.(m)
-                    }
-                    className="text-gray-500 hover:text-gray-900 opacity-60 group-hover:opacity-100 transition-opacity"
-                    title={
-                      isHidden ? "Unhide (visible to student again)" : "Hide from student"
-                    }
-                    aria-label={isHidden ? "Unhide message" : "Hide message"}
-                  >
-                    {isHidden ? (
-                      <Eye className="w-3.5 h-3.5" />
-                    ) : (
-                      <EyeOff className="w-3.5 h-3.5" />
-                    )}
-                  </button>
-                )}
-              </div>
+                  {isHidden ? (
+                    <Eye className="w-3.5 h-3.5" />
+                  ) : (
+                    <EyeOff className="w-3.5 h-3.5" />
+                  )}
+                </button>
+              )}
             </div>
-            <p
-              className={`text-sm whitespace-pre-wrap ${
-                isHidden
-                  ? "text-gray-700"
-                  : isAdmin
-                    ? "text-emerald-900"
-                    : "text-blue-900"
+            <div
+              className={`max-w-[85%] rounded-2xl border px-3.5 py-2 ${tone.bubble} ${
+                isMe ? "rounded-tr-sm" : "rounded-tl-sm"
               }`}
             >
-              {m.text}
-            </p>
+              <p className={`text-sm whitespace-pre-wrap ${tone.text}`}>{m.text}</p>
+            </div>
           </div>
         );
       })}

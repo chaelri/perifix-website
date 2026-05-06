@@ -215,41 +215,48 @@ function TicketRow({ ticket }: { ticket: MyTicket }) {
       </div>
 
       {messages.length > 0 && (
-        <div className="mt-3 space-y-2">
+        <div className="mt-3 space-y-3">
           {messages.map((m) => {
             const isMe = m.by_uid === auth.currentUser?.uid;
+            // Same chat-app palette as the admin view: "you" right-aligned in
+            // emerald, the other party left-aligned in indigo (admin) or blue.
+            const tone = isMe
+              ? {
+                  bubble: "bg-emerald-50 border-emerald-200",
+                  role: "text-emerald-700",
+                  meta: "text-emerald-700/70",
+                  text: "text-emerald-900",
+                }
+              : {
+                  bubble: "bg-indigo-50 border-indigo-200",
+                  role: "text-indigo-700",
+                  meta: "text-indigo-700/70",
+                  text: "text-indigo-900",
+                };
             return (
               <div
                 key={m.id}
-                className={`rounded-lg border p-3 ${
-                  isMe
-                    ? "bg-emerald-50 border-emerald-200"
-                    : "bg-blue-50 border-blue-200"
-                }`}
+                className={`flex flex-col ${isMe ? "items-end" : "items-start"}`}
               >
-                <div className="flex items-center justify-between mb-1">
-                  <p
-                    className={`text-[10px] font-semibold uppercase tracking-wider ${
-                      isMe ? "text-emerald-700" : "text-blue-700"
-                    }`}
+                <div className={`flex items-center gap-2 mb-1 px-1 ${tone.meta}`}>
+                  <span
+                    className={`text-[10px] font-semibold uppercase tracking-wider ${tone.role}`}
                   >
                     {isMe ? "You" : "Admin"}
-                  </p>
-                  <p
-                    className={`text-[10px] ${
-                      isMe ? "text-emerald-700/70" : "text-blue-700/70"
-                    }`}
-                  >
+                  </span>
+                  <span className="text-[10px]">
                     {m.at ? formatDate(m.at) : ""}
-                  </p>
+                  </span>
                 </div>
-                <p
-                  className={`text-sm whitespace-pre-wrap ${
-                    isMe ? "text-emerald-900" : "text-blue-900"
+                <div
+                  className={`max-w-[85%] rounded-2xl border px-3.5 py-2 ${tone.bubble} ${
+                    isMe ? "rounded-tr-sm" : "rounded-tl-sm"
                   }`}
                 >
-                  {m.text}
-                </p>
+                  <p className={`text-sm whitespace-pre-wrap ${tone.text}`}>
+                    {m.text}
+                  </p>
+                </div>
               </div>
             );
           })}
