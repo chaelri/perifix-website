@@ -389,7 +389,7 @@ export function Troubleshooting(_props: TroubleshootingProps) {
                 No problems documented for this device yet.
               </Card>
             ) : (
-              <div className="space-y-2">
+              <div className="space-y-2 max-w-3xl">
                 {sortedProblems.map((problem) => {
                   const badge = SEVERITY_BADGE[problem.severity];
                   return (
@@ -459,7 +459,7 @@ export function Troubleshooting(_props: TroubleshootingProps) {
 
       {/* Still having issues CTA */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-10">
-        <Card className="bg-gradient-to-br from-amber-50 to-blue-50 border border-blue-200 p-6 md:p-8">
+        <Card className="bg-white border border-slate-200 p-6 md:p-8">
           <div className="text-center max-w-2xl mx-auto">
             <div className="w-12 h-12 bg-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-md">
               <CheckCircle2 className="w-6 h-6 text-white" />
