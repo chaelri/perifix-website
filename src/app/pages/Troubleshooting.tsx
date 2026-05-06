@@ -32,7 +32,7 @@ import { SmartSearchBar } from "../components/SmartSearchBar";
 import { TroubleshootingGuideModal } from "../components/TroubleshootingGuideModal";
 import { ContactSupportModal } from "../components/ContactSupportModal";
 import { useAuth } from "../contexts/AuthContext";
-import { toast } from "sonner@2.0.3";
+import { toast } from "sonner";
 import logoImage from "figma:asset/ab58eeaa257e876782c9f32bf8bd702e735f6d24.png";
 
 type ProblemSeverity = "common" | "moderate" | "rare";

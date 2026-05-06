@@ -5,7 +5,7 @@ import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
 import { useAuth } from "../contexts/AuthContext";
 import { UserPlus, ArrowLeft, CheckCircle, XCircle, Clock, Mail, Key, User, Copy, Send } from "lucide-react";
-import { toast } from "sonner@2.0.3";
+import { toast } from "sonner";
 
 interface AccountRequest {
   id: number;

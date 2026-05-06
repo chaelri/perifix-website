@@ -6,7 +6,7 @@ import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { User, AlertCircle } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
-import { toast } from "sonner@2.0.3";
+import { toast } from "sonner";
 import { LoadingScreen } from "../components/LoadingScreen";
 
 export function StudentLogin() {

@@ -5,7 +5,7 @@ import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { User, Shield, UserPlus, CheckCircle2, X } from "lucide-react";
 import { useState } from "react";
-import { toast } from "sonner@2.0.3";
+import { toast } from "sonner";
 
 export function LoginSelection() {
   const [firstName, setFirstName] = useState("");

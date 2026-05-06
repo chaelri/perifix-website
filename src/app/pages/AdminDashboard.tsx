@@ -5,7 +5,7 @@ import { Card } from "../components/ui/card";
 import { LogOut, Shield, Users, UserCheck, Calendar, Mail, UserPlus, BarChart3, AlertCircle } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
 import { projectId, publicAnonKey } from "../utils/supabase/info";
-import { toast } from "sonner@2.0.3";
+import { toast } from "sonner";
 
 interface UserData {
   id: string;
