@@ -51,7 +51,7 @@ async function loadUserFromSession(session: Session): Promise<AuthUser> {
     .maybeSingle();
 
   const timeout = new Promise<never>((_, reject) =>
-    setTimeout(() => reject(new Error("Profile lookup timed out — check your network or RLS policies.")), 10_000),
+    setTimeout(() => reject(new Error("Profile lookup timed out — check your network or RLS policies.")), 30_000),
   );
 
   const { data, error } = await Promise.race([query, timeout]) as Awaited<typeof query>;
@@ -85,29 +85,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let mounted = true;
 
-    supabase.auth.getSession().then(async ({ data }) => {
+    supabase.auth.getSession().then(({ data }) => {
       if (!mounted) return;
       const sess = data.session;
       setSession(sess);
 
       if (!sess) {
-        // No session — clear any stale cache.
-        if (mounted) setUser(null);
+        // No session — clear any stale cache and stop loading.
+        setUser(null);
         writeCachedUser(null);
-        if (mounted) setIsLoading(false);
+        setIsLoading(false);
         return;
       }
 
-      try {
-        const u = await loadUserFromSession(sess);
-        if (mounted) setUser(u);
-        writeCachedUser(u);
-      } catch (err) {
-        console.error("[auth] Initial profile load failed (keeping cached user):", err);
-        // Keep whatever cached user we hydrated with — the session is still
-        // valid, this was just a profile-fetch hiccup.
-      }
-      if (mounted) setIsLoading(false);
+      // Flip isLoading off immediately so ProtectedRoute can render with the
+      // cached user. The profile refresh happens in the background — if it
+      // succeeds, we update state + cache; if it fails, the cached user
+      // stays and the session is still valid.
+      setIsLoading(false);
+      loadUserFromSession(sess)
+        .then((u) => {
+          if (!mounted) return;
+          setUser(u);
+          writeCachedUser(u);
+        })
+        .catch((err) => {
+          console.error("[auth] Background profile load failed (keeping cached user):", err);
+        });
     });
 
     const { data: sub } = supabase.auth.onAuthStateChange(async (event, sess) => {
