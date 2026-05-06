@@ -4,7 +4,8 @@ import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
-import { supabase } from "../utils/supabase/client";
+import { db } from "../utils/firebase/client";
+import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 import { useAuth } from "../contexts/AuthContext";
 
 interface ContactSupportModalProps {
@@ -54,7 +55,7 @@ export function ContactSupportModal({
     e.preventDefault();
     setIsSubmitting(true);
     try {
-      const { error } = await supabase.from("support_requests").insert({
+      await addDoc(collection(db, "support_requests"), {
         user_id: user?.id ?? null,
         name: formData.name.trim(),
         email: formData.email.trim().toLowerCase(),
@@ -62,11 +63,10 @@ export function ContactSupportModal({
         issue: formData.issue.trim() || null,
         description: formData.description.trim(),
         source: "troubleshooting",
+        status: "pending",
+        created_at: serverTimestamp(),
+        updated_at: serverTimestamp(),
       });
-      if (error) {
-        toast.error(error.message || "Failed to submit support request.");
-        return;
-      }
       toast.success("Support request submitted!", {
         description: "Our team will review your request and get back to you soon.",
       });

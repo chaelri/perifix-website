@@ -4,7 +4,16 @@ import { Card } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
 import { useAuth } from "../contexts/AuthContext";
-import { supabase } from "../utils/supabase/client";
+import { auth, db } from "../utils/firebase/client";
+import {
+  collection,
+  doc,
+  getDocs,
+  orderBy,
+  query,
+  updateDoc,
+  Timestamp,
+} from "firebase/firestore";
 import {
   UserPlus,
   ArrowLeft,
@@ -19,7 +28,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ListSkeleton, FetchingBadge } from "../components/skeletons/Skeletons";
 
 interface AccountRequest {
-  id: number;
+  id: string;
   first_name: string;
   last_name: string;
   email: string;
@@ -33,19 +42,30 @@ interface ApprovalDetails {
 }
 
 async function fetchAccountRequests(): Promise<AccountRequest[]> {
-  const { data, error } = await supabase
-    .from("account_requests")
-    .select("id, first_name, last_name, email, status, created_at")
-    .order("created_at", { ascending: false });
-  if (error) throw error;
-  return (data ?? []) as AccountRequest[];
+  const q = query(collection(db, "account_requests"), orderBy("created_at", "desc"));
+  const snap = await getDocs(q);
+  return snap.docs.map((d) => {
+    const data = d.data();
+    const created =
+      data.created_at instanceof Timestamp
+        ? data.created_at.toDate().toISOString()
+        : data.created_at ?? "";
+    return {
+      id: d.id,
+      first_name: data.first_name ?? "",
+      last_name: data.last_name ?? "",
+      email: data.email ?? "",
+      status: (data.status as AccountRequest["status"]) ?? "pending",
+      created_at: created,
+    };
+  });
 }
 
 export function AccountsList() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const [approvingId, setApprovingId] = useState<number | null>(null);
+  const [approvingId, setApprovingId] = useState<string | null>(null);
   const [showApprovalDialog, setShowApprovalDialog] = useState(false);
   const [approvalDetails, setApprovalDetails] = useState<ApprovalDetails | null>(null);
 
@@ -65,16 +85,18 @@ export function AccountsList() {
   const handleApprove = async (request: AccountRequest) => {
     setApprovingId(request.id);
     try {
-      const redirectTo = `${window.location.origin}/reset-password`;
-      const { data, error } = await supabase.functions.invoke("approve-account", {
-        body: { requestId: request.id, redirectTo },
+      const idToken = await auth.currentUser?.getIdToken();
+      const res = await fetch("/api/admin/approve-account", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${idToken ?? ""}`,
+        },
+        body: JSON.stringify({ requestId: request.id }),
       });
-      if (error) {
-        toast.error(error.message || "Failed to approve account.");
-        return;
-      }
-      if (!data?.ok) {
-        toast.error(data?.error || "Approval failed.");
+      const data = await res.json();
+      if (!res.ok || !data?.ok) {
+        toast.error(data?.error || "Failed to approve account.");
         return;
       }
       setApprovalDetails({ email: data.email, name: data.name });
@@ -88,16 +110,15 @@ export function AccountsList() {
   };
 
   const handleReject = async (request: AccountRequest) => {
-    const { error } = await supabase
-      .from("account_requests")
-      .update({ status: "rejected" })
-      .eq("id", request.id);
-    if (error) {
-      toast.error(error.message || "Failed to reject request.");
-      return;
+    try {
+      await updateDoc(doc(db, "account_requests", request.id), {
+        status: "rejected",
+      });
+      toast.success("Request rejected.");
+      queryClient.invalidateQueries({ queryKey: ["account_requests"] });
+    } catch (err) {
+      toast.error((err as Error).message || "Failed to reject request.");
     }
-    toast.success("Request rejected.");
-    queryClient.invalidateQueries({ queryKey: ["account_requests"] });
   };
 
   const getStatusBadge = (status: string) => {

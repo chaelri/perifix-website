@@ -7,7 +7,8 @@ import { Label } from "../components/ui/label";
 import { User, Save, ArrowLeft, Mail, Shield } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "../contexts/AuthContext";
-import { supabase } from "../utils/supabase/client";
+import { db } from "../utils/firebase/client";
+import { doc, getDoc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { FetchingBadge } from "../components/skeletons/Skeletons";
 import { Skeleton } from "../components/ui/skeleton";
@@ -22,13 +23,17 @@ interface ProfileRow {
 }
 
 async function fetchOwnProfile(userId: string): Promise<ProfileRow> {
-  const { data, error } = await supabase
-    .from("profiles")
-    .select("id, email, first_name, last_name, full_name, role")
-    .eq("id", userId)
-    .single();
-  if (error) throw error;
-  return data as ProfileRow;
+  const snap = await getDoc(doc(db, "profiles", userId));
+  if (!snap.exists()) throw new Error("Profile not found.");
+  const data = snap.data();
+  return {
+    id: userId,
+    email: data.email ?? "",
+    first_name: data.first_name ?? null,
+    last_name: data.last_name ?? null,
+    full_name: data.full_name ?? null,
+    role: data.role as "student" | "admin",
+  };
 }
 
 export function Settings() {
@@ -62,19 +67,19 @@ export function Settings() {
     const trimmedFirst = firstName.trim();
     const trimmedLast = lastName.trim();
     const fullName = `${trimmedFirst} ${trimmedLast}`.trim();
-    const { error } = await supabase
-      .from("profiles")
-      .update({
+    try {
+      await updateDoc(doc(db, "profiles", user.id), {
         first_name: trimmedFirst || null,
         last_name: trimmedLast || null,
         full_name: fullName || null,
-      })
-      .eq("id", user.id);
-    setIsSaving(false);
-    if (error) {
-      toast.error(error.message || "Failed to save profile.");
+        updated_at: serverTimestamp(),
+      });
+    } catch (err) {
+      setIsSaving(false);
+      toast.error((err as Error).message || "Failed to save profile.");
       return;
     }
+    setIsSaving(false);
     toast.success("Profile updated.");
     queryClient.invalidateQueries({ queryKey: ["own-profile", user.id] });
     queryClient.invalidateQueries({ queryKey: ["profiles"] });

@@ -26,7 +26,15 @@ import { SmartSearchBar } from "../components/SmartSearchBar";
 import { TroubleshootingGuideModal } from "../components/TroubleshootingGuideModal";
 import { ContactSupportModal } from "../components/ContactSupportModal";
 import { useAuth } from "../contexts/AuthContext";
-import { supabase } from "../utils/supabase/client";
+import { db } from "../utils/firebase/client";
+import {
+  addDoc,
+  collection,
+  getDocs,
+  orderBy,
+  query,
+  serverTimestamp,
+} from "firebase/firestore";
 import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
 import { DeviceCategorySkeleton, FetchingBadge } from "../components/skeletons/Skeletons";
@@ -42,7 +50,7 @@ interface Step {
 }
 
 interface Problem {
-  id: number;
+  id: string;
   slug: string;
   title: string;
   severity: ProblemSeverity;
@@ -50,7 +58,7 @@ interface Problem {
 }
 
 interface Device {
-  id: number;
+  id: string;
   name: string;
   // Stored as a string (not a component) so the data round-trips through
   // localStorage when react-query persists the cache. Resolve to the actual
@@ -116,41 +124,38 @@ export function Troubleshooting(_props: TroubleshootingProps) {
     queryKey: ["troubleshooting-tree"],
     staleTime: 30 * 60_000,
     queryFn: async () => {
-      const [devs, probs] = await Promise.all([
-        supabase
-          .from("devices")
-          .select("id, slug, name, category, icon_name, color_class, display_order")
-          .order("display_order", { ascending: true }),
-        supabase
-          .from("problems")
-          .select("id, device_id, slug, title, severity, steps, display_order")
-          .order("display_order", { ascending: true }),
+      const [devSnap, probSnap] = await Promise.all([
+        getDocs(query(collection(db, "devices"), orderBy("display_order", "asc"))),
+        getDocs(query(collection(db, "problems"), orderBy("display_order", "asc"))),
       ]);
-      if (devs.error) throw devs.error;
-      if (probs.error) throw probs.error;
 
-      const problemsByDevice = new Map<number, Problem[]>();
-      for (const p of probs.data ?? []) {
-        const list = problemsByDevice.get(p.device_id) ?? [];
+      const problemsByDevice = new Map<string, Problem[]>();
+      probSnap.forEach((doc) => {
+        const p = doc.data();
+        const deviceSlug = (p.device_slug ?? "") as string;
+        const list = problemsByDevice.get(deviceSlug) ?? [];
         list.push({
-          id: p.id,
+          id: doc.id,
           slug: p.slug,
           title: p.title,
           severity: p.severity as ProblemSeverity,
           steps: (p.steps as Step[]) ?? [],
         });
-        problemsByDevice.set(p.device_id, list);
-      }
+        problemsByDevice.set(deviceSlug, list);
+      });
 
-      return (devs.data ?? []).map((d: any) => ({
-        id: d.id,
-        slug: d.slug,
-        name: d.name,
-        category: d.category as "input" | "output",
-        color: d.color_class,
-        iconName: d.icon_name,
-        problems: problemsByDevice.get(d.id) ?? [],
-      })) as Device[];
+      return devSnap.docs.map((doc) => {
+        const d = doc.data();
+        return {
+          id: doc.id,
+          slug: d.slug ?? doc.id,
+          name: d.name,
+          category: d.category as "input" | "output",
+          color: d.color_class,
+          iconName: d.icon_name,
+          problems: problemsByDevice.get(d.slug ?? doc.id) ?? [],
+        };
+      }) as Device[];
     },
   });
 
@@ -211,15 +216,17 @@ export function Troubleshooting(_props: TroubleshootingProps) {
     const guideId = getGuideId(device.slug, problem.slug);
     setFeedbackGiven((prev) => new Set(prev).add(guideId));
 
-    const { error } = await supabase.from("troubleshooting_feedback").insert({
-      user_id: user?.id ?? null,
-      problem_id: problem.id,
-      device_slug: device.slug,
-      problem_slug: problem.slug,
-      helpful,
-    });
-    if (error) {
-      console.warn("Failed to record feedback:", error.message);
+    try {
+      await addDoc(collection(db, "troubleshooting_feedback"), {
+        user_id: user?.id ?? null,
+        problem_doc_id: problem.id,
+        device_slug: device.slug,
+        problem_slug: problem.slug,
+        helpful,
+        created_at: serverTimestamp(),
+      });
+    } catch (err) {
+      console.warn("Failed to record feedback:", (err as Error).message);
     }
   };
 

@@ -1,0 +1,65 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/profiles/$(request.auth.uid))
+        && get(/databases/$(database)/documents/profiles/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    // profiles/{uid} — public read of own; admin reads all; user updates own non-role fields; admin can update role
+    match /profiles/{uid} {
+      allow read: if isOwner(uid) || isAdmin();
+      allow create: if isAdmin(); // server-side / cloud function path preferred
+      allow update: if (isOwner(uid)
+                        && request.resource.data.role == resource.data.role
+                        && request.resource.data.email == resource.data.email)
+                    || isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // account_requests — anyone can submit; admins manage
+    match /account_requests/{id} {
+      allow create: if request.resource.data.keys().hasOnly(
+        ['first_name', 'last_name', 'email', 'status', 'created_at']
+      ) && request.resource.data.status == 'pending';
+      allow read, update, delete: if isAdmin();
+    }
+
+    // support_requests — anyone can submit; owner reads own; admin all
+    match /support_requests/{id} {
+      allow create: if true;
+      allow read: if isAdmin()
+        || (isSignedIn() && resource.data.user_id == request.auth.uid);
+      allow update, delete: if isAdmin();
+    }
+
+    // devices — public read; admin write
+    match /devices/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // problems — public read; admin write
+    match /problems/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // troubleshooting_feedback — anyone insert; admin read/delete
+    match /troubleshooting_feedback/{id} {
+      allow create: if true;
+      allow read, delete: if isAdmin();
+      allow update: if false;
+    }
+  }
+}

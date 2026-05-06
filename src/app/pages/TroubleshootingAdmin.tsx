@@ -24,7 +24,24 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "../contexts/AuthContext";
-import { supabase } from "../utils/supabase/client";
+import { db, storage } from "../utils/firebase/client";
+import {
+  collection,
+  deleteDoc,
+  doc,
+  getDocs,
+  orderBy,
+  query,
+  serverTimestamp,
+  setDoc,
+  writeBatch,
+} from "firebase/firestore";
+import {
+  deleteObject,
+  getDownloadURL,
+  ref as storageRef,
+  uploadBytes,
+} from "firebase/storage";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ListSkeleton, FetchingBadge } from "../components/skeletons/Skeletons";
 
@@ -39,7 +56,7 @@ interface Step {
 }
 
 interface DeviceRow {
-  id: number;
+  id: string; // doc id (= slug)
   slug: string;
   name: string;
   category: Category;
@@ -49,8 +66,8 @@ interface DeviceRow {
 }
 
 interface ProblemRow {
-  id: number;
-  device_id: number;
+  id: string; // composite doc id: `${device_slug}__${slug}`
+  device_slug: string;
   slug: string;
   title: string;
   severity: Severity;
@@ -80,25 +97,38 @@ function slugify(input: string): string {
 }
 
 async function fetchDevices(): Promise<DeviceRow[]> {
-  const { data, error } = await supabase
-    .from("devices")
-    .select("id, slug, name, category, icon_name, color_class, display_order")
-    .order("display_order", { ascending: true });
-  if (error) throw error;
-  return (data ?? []) as DeviceRow[];
+  const snap = await getDocs(query(collection(db, "devices"), orderBy("display_order", "asc")));
+  return snap.docs.map((d) => {
+    const data = d.data();
+    return {
+      id: d.id,
+      slug: (data.slug as string) ?? d.id,
+      name: data.name,
+      category: data.category as Category,
+      icon_name: data.icon_name ?? null,
+      color_class: data.color_class ?? null,
+      display_order: (data.display_order as number) ?? 0,
+    };
+  });
 }
 
 async function fetchProblems(): Promise<ProblemRow[]> {
-  const { data, error } = await supabase
-    .from("problems")
-    .select("id, device_id, slug, title, severity, steps, display_order")
-    .order("display_order", { ascending: true });
-  if (error) throw error;
-  return (data ?? []).map((p: any) => ({
-    ...p,
-    steps: (p.steps as Step[]) ?? [],
-  })) as ProblemRow[];
+  const snap = await getDocs(query(collection(db, "problems"), orderBy("display_order", "asc")));
+  return snap.docs.map((d) => {
+    const data = d.data();
+    return {
+      id: d.id,
+      device_slug: (data.device_slug as string) ?? "",
+      slug: (data.slug as string) ?? "",
+      title: data.title ?? "",
+      severity: (data.severity as Severity) ?? "common",
+      steps: ((data.steps as Step[]) ?? []),
+      display_order: (data.display_order as number) ?? 0,
+    };
+  });
 }
+
+const problemDocId = (deviceSlug: string, slug: string) => `${deviceSlug}__${slug}`;
 
 // ---------------------------------------------------------------------------
 // Device modal
@@ -128,26 +158,47 @@ function DeviceModal({ initial, onClose, onSaved }: DeviceModalProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
+    const cleanSlug = slug.trim();
     const payload = {
       name: name.trim(),
-      slug: slug.trim(),
+      slug: cleanSlug,
       category,
       icon_name: iconName,
       color_class: colorClass,
       display_order: displayOrder,
+      updated_at: serverTimestamp(),
     };
-    const op = initial
-      ? supabase.from("devices").update(payload).eq("id", initial.id)
-      : supabase.from("devices").insert(payload);
-    const { error } = await op;
-    setSaving(false);
-    if (error) {
-      toast.error(error.message || "Save failed.");
-      return;
+    try {
+      // Doc id is the slug. If the slug changed during edit, write the new doc
+      // and delete the old one in a batch + cascade-rename problems' device_slug.
+      if (initial && initial.slug !== cleanSlug) {
+        const batch = writeBatch(db);
+        batch.set(doc(db, "devices", cleanSlug), payload);
+        batch.delete(doc(db, "devices", initial.slug));
+        // Move all problems under the new device slug.
+        const probSnap = await getDocs(collection(db, "problems"));
+        probSnap.forEach((p) => {
+          if (p.data().device_slug === initial.slug) {
+            const newId = problemDocId(cleanSlug, p.data().slug);
+            batch.set(doc(db, "problems", newId), {
+              ...p.data(),
+              device_slug: cleanSlug,
+            });
+            batch.delete(doc(db, "problems", p.id));
+          }
+        });
+        await batch.commit();
+      } else {
+        await setDoc(doc(db, "devices", cleanSlug), payload, { merge: true });
+      }
+      toast.success(initial ? "Device updated." : "Device created.");
+      onSaved();
+      onClose();
+    } catch (err) {
+      toast.error((err as Error).message || "Save failed.");
+    } finally {
+      setSaving(false);
     }
-    toast.success(initial ? "Device updated." : "Device created.");
-    onSaved();
-    onClose();
   };
 
   return (
@@ -285,24 +336,14 @@ function StepImageField({ value, onChange }: StepImageFieldProps) {
     setUploading(true);
     try {
       const ext = file.name.split(".").pop()?.toLowerCase() || "png";
-      const path = `steps/${crypto.randomUUID()}.${ext}`;
-      const { error: upErr } = await supabase.storage
-        .from("step-images")
-        .upload(path, file, {
-          cacheControl: "31536000",
-          contentType: file.type,
-          upsert: false,
-        });
-      if (upErr) {
-        toast.error(upErr.message || "Upload failed.");
-        return;
-      }
-      const { data: pub } = supabase.storage.from("step-images").getPublicUrl(path);
-      if (!pub?.publicUrl) {
-        toast.error("Could not get a public URL for the uploaded image.");
-        return;
-      }
-      onChange(pub.publicUrl);
+      const path = `step-images/steps/${crypto.randomUUID()}.${ext}`;
+      const ref = storageRef(storage, path);
+      await uploadBytes(ref, file, {
+        contentType: file.type,
+        cacheControl: "public, max-age=31536000",
+      });
+      const url = await getDownloadURL(ref);
+      onChange(url);
       toast.success("Image uploaded.");
     } catch (err: any) {
       toast.error(err?.message ?? "Upload failed.");
@@ -399,13 +440,13 @@ function StepImageField({ value, onChange }: StepImageFieldProps) {
 // ---------------------------------------------------------------------------
 
 interface ProblemModalProps {
-  deviceId: number;
+  deviceSlug: string;
   initial: ProblemRow | null;
   onClose: () => void;
   onSaved: () => void;
 }
 
-function ProblemModal({ deviceId, initial, onClose, onSaved }: ProblemModalProps) {
+function ProblemModal({ deviceSlug, initial, onClose, onSaved }: ProblemModalProps) {
   const [title, setTitle] = useState(initial?.title ?? "");
   const [slug, setSlug] = useState(initial?.slug ?? "");
   const [slugTouched, setSlugTouched] = useState(!!initial);
@@ -458,26 +499,35 @@ function ProblemModal({ deviceId, initial, onClose, onSaved }: ProblemModalProps
       description: s.description.trim(),
       image: s.image.trim(),
     }));
+    const cleanSlug = slug.trim();
+    const newId = problemDocId(deviceSlug, cleanSlug);
     const payload = {
-      device_id: deviceId,
+      device_slug: deviceSlug,
       title: title.trim(),
-      slug: slug.trim(),
+      slug: cleanSlug,
       severity,
       display_order: displayOrder,
       steps: cleanSteps,
+      updated_at: serverTimestamp(),
     };
-    const op = initial
-      ? supabase.from("problems").update(payload).eq("id", initial.id)
-      : supabase.from("problems").insert(payload);
-    const { error } = await op;
-    setSaving(false);
-    if (error) {
-      toast.error(error.message || "Save failed.");
-      return;
+    try {
+      if (initial && initial.id !== newId) {
+        // Slug changed → write new doc + delete old in one batch.
+        const batch = writeBatch(db);
+        batch.set(doc(db, "problems", newId), payload);
+        batch.delete(doc(db, "problems", initial.id));
+        await batch.commit();
+      } else {
+        await setDoc(doc(db, "problems", newId), payload, { merge: true });
+      }
+      toast.success(initial ? "Problem updated." : "Problem created.");
+      onSaved();
+      onClose();
+    } catch (err) {
+      toast.error((err as Error).message || "Save failed.");
+    } finally {
+      setSaving(false);
     }
-    toast.success(initial ? "Problem updated." : "Problem created.");
-    onSaved();
-    onClose();
   };
 
   return (
@@ -640,11 +690,11 @@ export function TroubleshootingAdmin() {
   const navigate = useNavigate();
   const location = useLocation();
   const queryClient = useQueryClient();
-  const [expandedDeviceId, setExpandedDeviceId] = useState<number | null>(null);
+  const [expandedDeviceSlug, setExpandedDeviceSlug] = useState<string | null>(null);
   const [editingDevice, setEditingDevice] = useState<DeviceRow | null>(null);
   const [newDevice, setNewDevice] = useState(false);
   const [editingProblem, setEditingProblem] = useState<{
-    deviceId: number;
+    deviceSlug: string;
     initial: ProblemRow | null;
   } | null>(null);
 
@@ -666,11 +716,11 @@ export function TroubleshootingAdmin() {
   });
 
   const problemsByDevice = useMemo(() => {
-    const map = new Map<number, ProblemRow[]>();
+    const map = new Map<string, ProblemRow[]>();
     for (const p of problems) {
-      const list = map.get(p.device_id) ?? [];
+      const list = map.get(p.device_slug) ?? [];
       list.push(p);
-      map.set(p.device_id, list);
+      map.set(p.device_slug, list);
     }
     return map;
   }, [problems]);
@@ -684,30 +734,51 @@ export function TroubleshootingAdmin() {
   };
 
   const handleDeleteDevice = async (d: DeviceRow) => {
-    const probCount = problemsByDevice.get(d.id)?.length ?? 0;
+    const probs = problemsByDevice.get(d.slug) ?? [];
     const msg =
-      probCount > 0
-        ? `Delete "${d.name}" and its ${probCount} problem(s)? This cannot be undone.`
+      probs.length > 0
+        ? `Delete "${d.name}" and its ${probs.length} problem(s)? This cannot be undone.`
         : `Delete "${d.name}"? This cannot be undone.`;
     if (!confirm(msg)) return;
-    const { error } = await supabase.from("devices").delete().eq("id", d.id);
-    if (error) {
-      toast.error(error.message || "Delete failed.");
-      return;
+    try {
+      const batch = writeBatch(db);
+      batch.delete(doc(db, "devices", d.slug));
+      for (const p of probs) batch.delete(doc(db, "problems", p.id));
+      await batch.commit();
+      // Best-effort cleanup of step images for the deleted problems.
+      for (const p of probs) {
+        for (const s of p.steps ?? []) {
+          if (!s.image?.includes("firebasestorage.googleapis.com")) continue;
+          const m = s.image.match(/\/o\/([^?]+)/);
+          if (!m) continue;
+          const path = decodeURIComponent(m[1]);
+          await deleteObject(storageRef(storage, path)).catch(() => undefined);
+        }
+      }
+      toast.success("Device deleted.");
+      refresh();
+    } catch (err) {
+      toast.error((err as Error).message || "Delete failed.");
     }
-    toast.success("Device deleted.");
-    refresh();
   };
 
   const handleDeleteProblem = async (p: ProblemRow) => {
     if (!confirm(`Delete problem "${p.title}"?`)) return;
-    const { error } = await supabase.from("problems").delete().eq("id", p.id);
-    if (error) {
-      toast.error(error.message || "Delete failed.");
-      return;
+    try {
+      await deleteDoc(doc(db, "problems", p.id));
+      // Best-effort cleanup of step images.
+      for (const s of p.steps ?? []) {
+        if (!s.image?.includes("firebasestorage.googleapis.com")) continue;
+        const m = s.image.match(/\/o\/([^?]+)/);
+        if (!m) continue;
+        const path = decodeURIComponent(m[1]);
+        await deleteObject(storageRef(storage, path)).catch(() => undefined);
+      }
+      toast.success("Problem deleted.");
+      refresh();
+    } catch (err) {
+      toast.error((err as Error).message || "Delete failed.");
     }
-    toast.success("Problem deleted.");
-    refresh();
   };
 
   if (!user || user.role !== "admin") return null;
@@ -716,8 +787,8 @@ export function TroubleshootingAdmin() {
   const outputDevices = devices.filter((d) => d.category === "output");
 
   const renderDevice = (d: DeviceRow) => {
-    const isExpanded = expandedDeviceId === d.id;
-    const probs = problemsByDevice.get(d.id) ?? [];
+    const isExpanded = expandedDeviceSlug === d.slug;
+    const probs = problemsByDevice.get(d.slug) ?? [];
     const colorClass = d.color_class || "bg-blue-500";
 
     return (
@@ -725,7 +796,7 @@ export function TroubleshootingAdmin() {
         <div className="p-4 flex items-center gap-3">
           <button
             type="button"
-            onClick={() => setExpandedDeviceId(isExpanded ? null : d.id)}
+            onClick={() => setExpandedDeviceSlug(isExpanded ? null : d.slug)}
             className="flex items-center gap-3 flex-1 text-left"
           >
             <div className={`w-10 h-10 ${colorClass} rounded-lg flex items-center justify-center text-white text-xs font-bold`}>
@@ -799,7 +870,7 @@ export function TroubleshootingAdmin() {
                   <Button
                     size="sm"
                     variant="ghost"
-                    onClick={() => setEditingProblem({ deviceId: d.id, initial: p })}
+                    onClick={() => setEditingProblem({ deviceSlug: d.slug, initial: p })}
                   >
                     <Pencil className="w-3.5 h-3.5" />
                   </Button>
@@ -817,7 +888,7 @@ export function TroubleshootingAdmin() {
             <Button
               size="sm"
               variant="outline"
-              onClick={() => setEditingProblem({ deviceId: d.id, initial: null })}
+              onClick={() => setEditingProblem({ deviceSlug: d.slug, initial: null })}
               className="w-full border-dashed border-gray-300"
             >
               <Plus className="w-3.5 h-3.5 mr-1" />
@@ -919,7 +990,7 @@ export function TroubleshootingAdmin() {
 
       {editingProblem && (
         <ProblemModal
-          deviceId={editingProblem.deviceId}
+          deviceSlug={editingProblem.deviceSlug}
           initial={editingProblem.initial}
           onClose={() => setEditingProblem(null)}
           onSaved={refresh}

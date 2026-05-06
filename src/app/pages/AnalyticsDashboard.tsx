@@ -12,12 +12,13 @@ import {
 import { Button } from "../components/ui/button";
 import { useAuth } from "../contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "../utils/supabase/client";
+import { db } from "../utils/firebase/client";
+import { collection, getDocs, orderBy, query, Timestamp } from "firebase/firestore";
 import { useQuery } from "@tanstack/react-query";
 import { StatRowSkeleton, FetchingBadge } from "../components/skeletons/Skeletons";
 
 interface FeedbackRecord {
-  id: number;
+  id: string;
   device_slug: string | null;
   problem_slug: string | null;
   helpful: boolean;
@@ -25,32 +26,42 @@ interface FeedbackRecord {
 }
 
 async function fetchAnalytics() {
-  const [fb, devs, probs] = await Promise.all([
-    supabase
-      .from("troubleshooting_feedback")
-      .select("id, device_slug, problem_slug, helpful, created_at")
-      .order("created_at", { ascending: false }),
-    supabase.from("devices").select("slug, name"),
-    supabase.from("problems").select("slug, title"),
+  const [fbSnap, devSnap, probSnap] = await Promise.all([
+    getDocs(query(collection(db, "troubleshooting_feedback"), orderBy("created_at", "desc"))),
+    getDocs(collection(db, "devices")),
+    getDocs(collection(db, "problems")),
   ]);
-  if (fb.error) throw fb.error;
-  if (devs.error) throw devs.error;
-  if (probs.error) throw probs.error;
 
-  // Use plain objects (not Map). The react-query cache is persisted to
-  // localStorage as JSON, and Maps round-trip to {} — so on the next page
-  // load deviceMap[...] would throw "g.get is not a function".
+  // Use plain objects (not Map) — react-query cache persists to localStorage
+  // as JSON and Maps round-trip to {}.
   const deviceMap: Record<string, string> = {};
-  for (const d of (devs.data ?? []) as any[]) deviceMap[d.slug] = d.name;
+  devSnap.forEach((d) => {
+    const data = d.data();
+    if (data.slug) deviceMap[data.slug as string] = data.name;
+  });
 
   const problemMap: Record<string, string> = {};
-  for (const p of (probs.data ?? []) as any[]) problemMap[p.slug] = p.title;
+  probSnap.forEach((d) => {
+    const data = d.data();
+    if (data.slug) problemMap[data.slug as string] = data.title;
+  });
 
-  return {
-    feedback: (fb.data ?? []) as FeedbackRecord[],
-    deviceMap,
-    problemMap,
-  };
+  const feedback: FeedbackRecord[] = fbSnap.docs.map((d) => {
+    const data = d.data();
+    const created =
+      data.created_at instanceof Timestamp
+        ? data.created_at.toDate().toISOString()
+        : data.created_at ?? "";
+    return {
+      id: d.id,
+      device_slug: data.device_slug ?? null,
+      problem_slug: data.problem_slug ?? null,
+      helpful: !!data.helpful,
+      created_at: created,
+    };
+  });
+
+  return { feedback, deviceMap, problemMap };
 }
 
 export function AnalyticsDashboard() {

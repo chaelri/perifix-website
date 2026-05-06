@@ -22,7 +22,19 @@ import { useAuth } from "../contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "motion/react";
-import { supabase } from "../utils/supabase/client";
+import { db } from "../utils/firebase/client";
+import {
+  collection,
+  deleteDoc,
+  doc,
+  getDocs,
+  onSnapshot,
+  orderBy,
+  query,
+  serverTimestamp,
+  Timestamp,
+  updateDoc,
+} from "firebase/firestore";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ListSkeleton, StatRowSkeleton, FetchingBadge } from "../components/skeletons/Skeletons";
 
@@ -39,12 +51,26 @@ interface SupportRequest {
 }
 
 async function fetchSupportRequests(): Promise<SupportRequest[]> {
-  const { data, error } = await supabase
-    .from("support_requests")
-    .select("id, name, email, device, issue, description, status, source, created_at")
-    .order("created_at", { ascending: false });
-  if (error) throw error;
-  return (data ?? []) as SupportRequest[];
+  const q = query(collection(db, "support_requests"), orderBy("created_at", "desc"));
+  const snap = await getDocs(q);
+  return snap.docs.map((d) => {
+    const data = d.data();
+    const created =
+      data.created_at instanceof Timestamp
+        ? data.created_at.toDate().toISOString()
+        : data.created_at ?? "";
+    return {
+      id: d.id,
+      name: data.name ?? "",
+      email: data.email ?? "",
+      device: data.device ?? null,
+      issue: data.issue ?? null,
+      description: data.description ?? "",
+      status: (data.status as SupportRequest["status"]) ?? "pending",
+      source: (data.source as SupportRequest["source"]) ?? "contact",
+      created_at: created,
+    };
+  });
 }
 
 export function SupportRequests() {
@@ -78,20 +104,13 @@ export function SupportRequests() {
     }
     if (user?.role !== "admin") return;
 
-    const channel = supabase
-      .channel("support_requests_admin")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "support_requests" },
-        () => {
-          queryClient.invalidateQueries({ queryKey: ["support_requests"] });
-        },
-      )
-      .subscribe();
-
-    return () => {
-      void supabase.removeChannel(channel);
-    };
+    // Realtime subscription via Firestore onSnapshot — invalidate the query cache
+    // on any change so the list updates live.
+    const q = query(collection(db, "support_requests"), orderBy("created_at", "desc"));
+    const unsub = onSnapshot(q, () => {
+      queryClient.invalidateQueries({ queryKey: ["support_requests"] });
+    });
+    return () => unsub();
   }, [user, navigate, queryClient]);
 
   const filteredRequests = useMemo(() => {
@@ -126,37 +145,37 @@ export function SupportRequests() {
   }, [requests]);
 
   const updateRequestStatus = async (id: string, status: SupportRequest["status"]) => {
-    const { error } = await supabase
-      .from("support_requests")
-      .update({ status })
-      .eq("id", id);
-    if (error) {
-      toast.error(error.message || "Failed to update status.");
-      return;
+    try {
+      await updateDoc(doc(db, "support_requests", id), {
+        status,
+        updated_at: serverTimestamp(),
+      });
+      queryClient.setQueryData<SupportRequest[]>(["support_requests"], (prev) =>
+        (prev ?? []).map((r) => (r.id === id ? { ...r, status } : r)),
+      );
+      setSelectedRequest((prev) => (prev && prev.id === id ? { ...prev, status } : prev));
+      toast.success("Request updated", {
+        description: `Status changed to ${status}`,
+      });
+    } catch (err) {
+      toast.error((err as Error).message || "Failed to update status.");
     }
-    queryClient.setQueryData<SupportRequest[]>(["support_requests"], (prev) =>
-      (prev ?? []).map((r) => (r.id === id ? { ...r, status } : r)),
-    );
-    setSelectedRequest((prev) => (prev && prev.id === id ? { ...prev, status } : prev));
-    toast.success("Request updated", {
-      description: `Status changed to ${status}`,
-    });
   };
 
   const deleteRequest = async (id: string) => {
-    const { error } = await supabase.from("support_requests").delete().eq("id", id);
-    if (error) {
-      toast.error(error.message || "Failed to delete request.");
-      return;
+    try {
+      await deleteDoc(doc(db, "support_requests", id));
+      queryClient.setQueryData<SupportRequest[]>(["support_requests"], (prev) =>
+        (prev ?? []).filter((r) => r.id !== id),
+      );
+      if (selectedRequest?.id === id) {
+        setViewModalOpen(false);
+        setSelectedRequest(null);
+      }
+      toast.success("Request deleted");
+    } catch (err) {
+      toast.error((err as Error).message || "Failed to delete request.");
     }
-    queryClient.setQueryData<SupportRequest[]>(["support_requests"], (prev) =>
-      (prev ?? []).filter((r) => r.id !== id),
-    );
-    if (selectedRequest?.id === id) {
-      setViewModalOpen(false);
-      setSelectedRequest(null);
-    }
-    toast.success("Request deleted");
   };
 
   const viewRequest = (request: SupportRequest) => {
@@ -186,21 +205,22 @@ export function SupportRequests() {
       issue: editForm.issue.trim() || null,
       description: editForm.description.trim(),
     };
-    const { error } = await supabase
-      .from("support_requests")
-      .update(patch)
-      .eq("id", selectedRequest.id);
-    setSavingEdit(false);
-    if (error) {
-      toast.error(error.message || "Failed to save changes.");
-      return;
+    try {
+      await updateDoc(doc(db, "support_requests", selectedRequest.id), {
+        ...patch,
+        updated_at: serverTimestamp(),
+      });
+      queryClient.setQueryData<SupportRequest[]>(["support_requests"], (prev) =>
+        (prev ?? []).map((r) => (r.id === selectedRequest.id ? { ...r, ...patch } : r)),
+      );
+      setSelectedRequest((prev) => (prev ? { ...prev, ...patch } : prev));
+      setEditing(false);
+      toast.success("Request updated.");
+    } catch (err) {
+      toast.error((err as Error).message || "Failed to save changes.");
+    } finally {
+      setSavingEdit(false);
     }
-    queryClient.setQueryData<SupportRequest[]>(["support_requests"], (prev) =>
-      (prev ?? []).map((r) => (r.id === selectedRequest.id ? { ...r, ...patch } : r)),
-    );
-    setSelectedRequest((prev) => (prev ? { ...prev, ...patch } : prev));
-    setEditing(false);
-    toast.success("Request updated.");
   };
 
   const formatDate = (timestamp: string) => {

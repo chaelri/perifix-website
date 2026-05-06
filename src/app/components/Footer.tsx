@@ -1,4 +1,4 @@
-import { Mail, Phone, Facebook } from "lucide-react";
+import { Mail, Phone, MapPin } from "lucide-react";
 import { Link } from "react-router-dom";
 import logoImage from "../assets/perifix-logo.png";
 
@@ -48,22 +48,32 @@ export function Footer() {
             <div className="space-y-3">
               <div className="flex items-center gap-3 text-muted-foreground">
                 <Mail className="w-5 h-5 text-primary flex-shrink-0" />
-                <span>perifix@support.com</span>
+                <a
+                  href="mailto:2023-201755@rtu.edu.ph"
+                  className="hover:text-primary transition-colors"
+                >
+                  2023-201755@rtu.edu.ph
+                </a>
               </div>
               <div className="flex items-center gap-3 text-muted-foreground">
                 <Phone className="w-5 h-5 text-primary flex-shrink-0" />
-                <span>+1 (555) 123-4567</span>
+                <a
+                  href="tel:+639619674444"
+                  className="hover:text-primary transition-colors"
+                >
+                  0961 967 4444
+                </a>
               </div>
-              <div className="flex items-center gap-3 text-muted-foreground">
-                <Facebook className="w-5 h-5 text-primary flex-shrink-0" />
-                <span>@PerifixSupport</span>
+              <div className="flex items-start gap-3 text-muted-foreground">
+                <MapPin className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
+                <span>Boni Avenue, Barangay Malamig, Mandaluyong City</span>
               </div>
             </div>
           </div>
         </div>
 
         <div className="border-t border-border mt-8 pt-8 text-center text-muted-foreground">
-          <p>© 2025 PERIFIX. All rights reserved. Built for educational research purposes.</p>
+          <p>© 2026 PERIFIX. All rights reserved. Built for educational research purposes.</p>
         </div>
       </div>
     </footer>

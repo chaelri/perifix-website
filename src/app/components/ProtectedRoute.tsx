@@ -8,26 +8,16 @@ interface ProtectedRouteProps {
 }
 
 export function ProtectedRoute({ children }: ProtectedRouteProps) {
-  const { user, session, isLoading } = useAuth();
+  const { user, firebaseUser, isLoading } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Only redirect once auth has settled and we're sure there's no session.
-    if (!isLoading && !session) {
+    if (!isLoading && !firebaseUser) {
       navigate("/login-selection", { replace: true });
     }
-  }, [session, isLoading, navigate]);
+  }, [firebaseUser, isLoading, navigate]);
 
-  // Have a user (cached or freshly fetched) — render the protected content.
-  // The profile refresh continues in the background and will update fields
-  // like role/name without blocking the UI.
   if (user) return <>{children}</>;
-
-  // No user yet but auth is still settling, or we have a session and the
-  // profile is loading — show the proper loading screen so the user knows
-  // we're working, instead of a blank page.
-  if (isLoading || session) return <LoadingScreen />;
-
-  // No user, no session — about to redirect via the effect.
+  if (isLoading || firebaseUser) return <LoadingScreen />;
   return null;
 }

@@ -1,6 +1,12 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
-import type { Session } from "@supabase/supabase-js";
-import { supabase } from "../utils/supabase/client";
+import {
+  signInWithEmailAndPassword,
+  signOut as fbSignOut,
+  onAuthStateChanged,
+  type User as FirebaseUser,
+} from "firebase/auth";
+import { doc, getDoc, serverTimestamp, updateDoc } from "firebase/firestore";
+import { auth, db } from "../utils/firebase/client";
 
 export interface AuthUser {
   id: string;
@@ -12,8 +18,7 @@ export interface AuthUser {
 
 interface AuthContextType {
   user: AuthUser | null;
-  session: Session | null;
-  token: string | null;
+  firebaseUser: FirebaseUser | null;
   signIn: (email: string, password: string) => Promise<AuthUser>;
   signOut: () => Promise<void>;
   logout: () => Promise<void>;
@@ -21,7 +26,6 @@ interface AuthContextType {
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
 const USER_CACHE_KEY = "perifix-user-cache";
 
 function readCachedUser(): AuthUser | null {
@@ -38,60 +42,53 @@ function writeCachedUser(u: AuthUser | null) {
     if (u) localStorage.setItem(USER_CACHE_KEY, JSON.stringify(u));
     else localStorage.removeItem(USER_CACHE_KEY);
   } catch {
-    // localStorage unavailable (private mode, quota) — non-fatal.
+    // localStorage unavailable — non-fatal.
   }
 }
 
-async function loadUserFromSession(session: Session): Promise<AuthUser> {
-  // 10s safety net so we never hang the UI if the network stalls.
-  const query = supabase
-    .from("profiles")
-    .select("id, email, full_name, first_name, last_name, role")
-    .eq("id", session.user.id)
-    .maybeSingle();
+interface ProfileDoc {
+  email?: string;
+  first_name?: string | null;
+  last_name?: string | null;
+  full_name?: string | null;
+  role?: "student" | "admin";
+}
 
-  const timeout = new Promise<never>((_, reject) =>
-    setTimeout(() => reject(new Error("Profile lookup timed out — check your network or RLS policies.")), 30_000),
-  );
-
-  const { data, error } = await Promise.race([query, timeout]) as Awaited<typeof query>;
-  if (error) throw error;
-  if (!data) {
+async function loadProfile(fbUser: FirebaseUser): Promise<AuthUser> {
+  const snap = await getDoc(doc(db, "profiles", fbUser.uid));
+  if (!snap.exists()) {
     throw new Error(
       "Your account exists but no profile was found. Please contact an admin.",
     );
   }
+  const data = snap.data() as ProfileDoc;
   return {
-    id: data.id,
-    email: data.email ?? session.user.email ?? "",
+    id: fbUser.uid,
+    email: data.email ?? fbUser.email ?? "",
     name:
       data.full_name ||
       [data.first_name, data.last_name].filter(Boolean).join(" ").trim() ||
-      session.user.email ||
+      fbUser.email ||
       "",
-    role: data.role as "student" | "admin",
+    role: (data.role as "student" | "admin") ?? "student",
     loginTime: new Date().toISOString(),
   };
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [session, setSession] = useState<Session | null>(null);
-  // Hydrate from cache synchronously so refresh feels seamless and
-  // ProtectedRoute doesn't bounce the user to /login-selection while we wait
-  // for the profile fetch.
+  const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
+  // Hydrate from cache synchronously so refresh feels seamless and ProtectedRoute
+  // doesn't bounce the user to /login-selection while we wait for the profile fetch.
   const [user, setUser] = useState<AuthUser | null>(() => readCachedUser());
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     let mounted = true;
-
-    supabase.auth.getSession().then(({ data }) => {
+    const unsub = onAuthStateChanged(auth, async (fbUser) => {
       if (!mounted) return;
-      const sess = data.session;
-      setSession(sess);
+      setFirebaseUser(fbUser);
 
-      if (!sess) {
-        // No session — clear any stale cache and stop loading.
+      if (!fbUser) {
         setUser(null);
         writeCachedUser(null);
         setIsLoading(false);
@@ -99,95 +96,48 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       // Flip isLoading off immediately so ProtectedRoute can render with the
-      // cached user. The profile refresh happens in the background — if it
-      // succeeds, we update state + cache; if it fails, the cached user
-      // stays and the session is still valid.
+      // cached user. The profile refresh happens in the background.
       setIsLoading(false);
-      loadUserFromSession(sess)
-        .then((u) => {
-          if (!mounted) return;
-          setUser(u);
-          writeCachedUser(u);
-        })
-        .catch((err) => {
-          console.error("[auth] Background profile load failed (keeping cached user):", err);
-        });
-    });
-
-    const { data: sub } = supabase.auth.onAuthStateChange(async (event, sess) => {
-      if (!mounted) return;
-      setSession(sess);
-
-      // Real sign-out: drop the user and clear the cache.
-      if (event === "SIGNED_OUT" || !sess) {
-        setUser(null);
-        writeCachedUser(null);
-        return;
-      }
-
-      // Token refresh / tab refocus: session is still valid and we already
-      // have the user loaded — don't re-fetch the profile, since a transient
-      // failure here would otherwise log the user out of the app.
-      if (event === "TOKEN_REFRESHED" || event === "USER_UPDATED") {
-        return;
-      }
-
-      // Initial session restore or fresh sign-in: hydrate the profile.
       try {
-        const u = await loadUserFromSession(sess);
-        if (mounted) setUser(u);
+        const u = await loadProfile(fbUser);
+        if (!mounted) return;
+        setUser(u);
         writeCachedUser(u);
       } catch (err) {
-        console.error("[auth] Failed to load profile (keeping existing session):", err);
-        // Intentionally NOT clearing user — the session is valid; this is
-        // likely a transient profile-fetch error.
+        console.error("[auth] profile load failed (keeping cached user):", err);
       }
     });
-
     return () => {
       mounted = false;
-      sub.subscription.unsubscribe();
+      unsub();
     };
   }, []);
 
   const signIn = async (email: string, password: string): Promise<AuthUser> => {
-    console.debug("[auth] signIn: calling signInWithPassword");
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) {
-      console.debug("[auth] signIn: signInWithPassword error", error);
-      throw error;
-    }
-    if (!data.session) throw new Error("No session returned from sign-in");
-
-    console.debug("[auth] signIn: loading profile for", data.session.user.id);
-    const u = await loadUserFromSession(data.session);
-    console.debug("[auth] signIn: profile loaded", { role: u.role });
-
-    setSession(data.session);
+    const cred = await signInWithEmailAndPassword(auth, email, password);
+    const u = await loadProfile(cred.user);
+    setFirebaseUser(cred.user);
     setUser(u);
     writeCachedUser(u);
 
-    supabase
-      .from("profiles")
-      .update({ last_login_at: new Date().toISOString() })
-      .eq("id", u.id)
-      .then(({ error: updErr }) => {
-        if (updErr) console.warn("[auth] last_login_at update failed:", updErr.message);
-      });
+    // Fire-and-forget last_login update.
+    void updateDoc(doc(db, "profiles", u.id), {
+      last_login_at: serverTimestamp(),
+    }).catch((err) => {
+      console.warn("[auth] last_login update failed:", err);
+    });
 
     return u;
   };
 
   const signOut = async () => {
-    // Clear local state synchronously so the UI flips to logged-out immediately,
-    // even if the network call to revoke the session is slow or hangs.
-    setSession(null);
+    setFirebaseUser(null);
     setUser(null);
     writeCachedUser(null);
     try {
-      await supabase.auth.signOut();
+      await fbSignOut(auth);
     } catch (err) {
-      console.warn("[auth] signOut network call failed (already logged out locally):", err);
+      console.warn("[auth] signOut failed (already logged out locally):", err);
     }
   };
 
@@ -195,8 +145,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     <AuthContext.Provider
       value={{
         user,
-        session,
-        token: session?.access_token ?? null,
+        firebaseUser,
         signIn,
         signOut,
         logout: signOut,

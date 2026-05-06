@@ -1,42 +1,45 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Card } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { Key, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
-import { supabase } from "../utils/supabase/client";
+import { auth } from "../utils/firebase/client";
+import { confirmPasswordReset, verifyPasswordResetCode } from "firebase/auth";
 
 export function ResetPassword() {
   const navigate = useNavigate();
-  const [hasSession, setHasSession] = useState<boolean | null>(null);
+  const [params] = useSearchParams();
+  const oobCode = params.get("oobCode");
+  const [verifiedEmail, setVerifiedEmail] = useState<string | null>(null);
+  const [linkValid, setLinkValid] = useState<boolean | null>(null);
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    let mounted = true;
-
-    supabase.auth.getSession().then(({ data }) => {
-      if (mounted) setHasSession(!!data.session);
-    });
-
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (mounted) setHasSession(!!session);
-    });
-
-    return () => {
-      mounted = false;
-      sub.subscription.unsubscribe();
-    };
-  }, []);
+    if (!oobCode) {
+      setLinkValid(false);
+      return;
+    }
+    verifyPasswordResetCode(auth, oobCode)
+      .then((email) => {
+        setVerifiedEmail(email);
+        setLinkValid(true);
+      })
+      .catch(() => setLinkValid(false));
+  }, [oobCode]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-
+    if (!oobCode) {
+      setError("Missing reset code.");
+      return;
+    }
     if (password.length < 8) {
       setError("Password must be at least 8 characters.");
       return;
@@ -45,22 +48,21 @@ export function ResetPassword() {
       setError("Passwords do not match.");
       return;
     }
-
     setIsSubmitting(true);
-    const { error: updateErr } = await supabase.auth.updateUser({ password });
-    setIsSubmitting(false);
-
-    if (updateErr) {
-      setError(updateErr.message || "Failed to update password.");
-      toast.error(updateErr.message || "Failed to update password.");
-      return;
+    try {
+      await confirmPasswordReset(auth, oobCode, password);
+      toast.success("Password set successfully!");
+      setTimeout(() => navigate("/login-selection", { replace: true }), 800);
+    } catch (err) {
+      const msg = (err as Error).message || "Failed to update password.";
+      setError(msg);
+      toast.error(msg);
+    } finally {
+      setIsSubmitting(false);
     }
-
-    toast.success("Password set successfully! Logging you in…");
-    setTimeout(() => navigate("/", { replace: true }), 800);
   };
 
-  if (hasSession === null) {
+  if (linkValid === null) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-amber-50">
         <p className="text-muted-foreground">Loading…</p>
@@ -68,7 +70,7 @@ export function ResetPassword() {
     );
   }
 
-  if (!hasSession) {
+  if (!linkValid) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-amber-50 px-4">
         <Card className="max-w-md w-full p-8 text-center border-2 border-red-200">
@@ -76,9 +78,12 @@ export function ResetPassword() {
           <h2 className="mb-2">Link Expired or Invalid</h2>
           <p className="text-muted-foreground mb-6">
             This password-reset link has expired or already been used. Ask an admin to send a
-            new one, or use the forgot-password flow on the login page.
+            new one.
           </p>
-          <Button onClick={() => navigate("/login-selection")} className="bg-blue-600 hover:bg-blue-700">
+          <Button
+            onClick={() => navigate("/login-selection")}
+            className="bg-blue-600 hover:bg-blue-700"
+          >
             Back to Login
           </Button>
         </Card>
@@ -95,7 +100,9 @@ export function ResetPassword() {
           </div>
           <h1 className="mb-2">Set Your Password</h1>
           <p className="text-muted-foreground">
-            Choose a strong password to secure your account.
+            {verifiedEmail
+              ? `Setting password for ${verifiedEmail}.`
+              : "Choose a strong password to secure your account."}
           </p>
         </div>
 

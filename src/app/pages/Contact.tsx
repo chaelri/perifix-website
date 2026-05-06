@@ -4,9 +4,10 @@ import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Textarea } from "../components/ui/textarea";
 import { Label } from "../components/ui/label";
-import { Mail, Phone, Facebook, MapPin, Clock, Lightbulb, Check } from "lucide-react";
+import { Mail, Phone, MapPin, Clock, Lightbulb, Check } from "lucide-react";
 import { toast } from "sonner";
-import { supabase } from "../utils/supabase/client";
+import { db } from "../utils/firebase/client";
+import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 import { useAuth } from "../contexts/AuthContext";
 
 export function Contact() {
@@ -32,18 +33,18 @@ export function Contact() {
     e.preventDefault();
     setIsSubmitting(true);
     try {
-      const { error } = await supabase.from("support_requests").insert({
+      await addDoc(collection(db, "support_requests"), {
         user_id: user?.id ?? null,
         name: name.trim(),
         email: email.trim().toLowerCase(),
+        device: null,
         issue: subject.trim() || null,
         description: message.trim(),
         source: "contact",
+        status: "pending",
+        created_at: serverTimestamp(),
+        updated_at: serverTimestamp(),
       });
-      if (error) {
-        toast.error(error.message || "Failed to send message.");
-        return;
-      }
       toast.success("Message sent! We'll get back to you soon.");
       setSubject("");
       setMessage("");
@@ -92,7 +93,12 @@ export function Contact() {
                     </div>
                     <div>
                       <h4 className="mb-1">Email</h4>
-                      <p className="text-muted-foreground">perifix@support.com</p>
+                      <a
+                        href="mailto:2023-201755@rtu.edu.ph"
+                        className="text-muted-foreground hover:text-primary transition-colors"
+                      >
+                        2023-201755@rtu.edu.ph
+                      </a>
                       <p className="text-sm text-muted-foreground mt-1">
                         We'll respond within 24 hours
                       </p>
@@ -107,24 +113,14 @@ export function Contact() {
                     </div>
                     <div>
                       <h4 className="mb-1">Phone</h4>
-                      <p className="text-muted-foreground">+1 (555) 123-4567</p>
+                      <a
+                        href="tel:+639619674444"
+                        className="text-muted-foreground hover:text-primary transition-colors"
+                      >
+                        0961 967 4444
+                      </a>
                       <p className="text-sm text-muted-foreground mt-1">
-                        Mon-Fri, 9:00 AM - 6:00 PM EST
-                      </p>
-                    </div>
-                  </div>
-                </Card>
-
-                <Card className="p-6 hover:shadow-md transition-shadow border-2 border-border">
-                  <div className="flex items-start gap-4">
-                    <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center flex-shrink-0">
-                      <Facebook className="w-6 h-6 text-primary" />
-                    </div>
-                    <div>
-                      <h4 className="mb-1">Facebook Page</h4>
-                      <p className="text-muted-foreground">@PerifixSupport</p>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        Message us for quick responses
+                        Mon-Fri, 9:00 AM - 6:00 PM
                       </p>
                     </div>
                   </div>
@@ -138,8 +134,8 @@ export function Contact() {
                     <div>
                       <h4 className="mb-1">Address</h4>
                       <p className="text-muted-foreground">
-                        123 Tech Support Lane<br />
-                        Silicon Valley, CA 94025
+                        Boni Avenue, Barangay Malamig<br />
+                        Mandaluyong City
                       </p>
                     </div>
                   </div>

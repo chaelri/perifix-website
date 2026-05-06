@@ -4,35 +4,33 @@ import { Button } from "../components/ui/button";
 import { Card } from "../components/ui/card";
 import { Shield, Users, UserPlus, BarChart3, AlertCircle, ChevronRight, Wrench } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
-import { supabase } from "../utils/supabase/client";
+import { db } from "../utils/firebase/client";
+import { collection, getCountFromServer, getDocs, query, where } from "firebase/firestore";
 import { useQuery } from "@tanstack/react-query";
 import { FetchingBadge } from "../components/skeletons/Skeletons";
 
 async function fetchUserCounts() {
-  const { data, error } = await supabase.from("profiles").select("role");
-  if (error) throw error;
-  const total = data?.length ?? 0;
-  const students = data?.filter((p: any) => p.role === "student").length ?? 0;
-  const admins = data?.filter((p: any) => p.role === "admin").length ?? 0;
-  return { total, students, admins };
+  const snap = await getDocs(collection(db, "profiles"));
+  let students = 0;
+  let admins = 0;
+  snap.forEach((d) => {
+    const role = d.data().role;
+    if (role === "admin") admins += 1;
+    else students += 1;
+  });
+  return { total: snap.size, students, admins };
 }
 
 async function fetchPendingAccountRequests(): Promise<number> {
-  const { count, error } = await supabase
-    .from("account_requests")
-    .select("*", { count: "exact", head: true })
-    .eq("status", "pending");
-  if (error) throw error;
-  return count ?? 0;
+  const q = query(collection(db, "account_requests"), where("status", "==", "pending"));
+  const snap = await getCountFromServer(q);
+  return snap.data().count;
 }
 
 async function fetchOpenSupportRequests(): Promise<number> {
-  const { count, error } = await supabase
-    .from("support_requests")
-    .select("*", { count: "exact", head: true })
-    .in("status", ["pending", "priority"]);
-  if (error) throw error;
-  return count ?? 0;
+  const q = query(collection(db, "support_requests"), where("status", "in", ["pending", "priority"]));
+  const snap = await getCountFromServer(q);
+  return snap.data().count;
 }
 
 interface ActionCardProps {

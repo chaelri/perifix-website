@@ -13,10 +13,20 @@ import {
   Search,
   Copy,
   CheckCircle,
+  UserPlus,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "../contexts/AuthContext";
-import { supabase } from "../utils/supabase/client";
+import { auth, db } from "../utils/firebase/client";
+import {
+  collection,
+  doc,
+  getDocs,
+  orderBy,
+  query,
+  Timestamp,
+  updateDoc,
+} from "firebase/firestore";
 import { Link, useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ListSkeleton, FetchingBadge } from "../components/skeletons/Skeletons";
@@ -32,12 +42,31 @@ interface ProfileRow {
 }
 
 async function fetchProfiles(): Promise<ProfileRow[]> {
-  const { data, error } = await supabase
-    .from("profiles")
-    .select("id, first_name, last_name, full_name, email, role, created_at")
-    .order("created_at", { ascending: false });
-  if (error) throw error;
-  return (data ?? []) as ProfileRow[];
+  const q = query(collection(db, "profiles"), orderBy("created_at", "desc"));
+  const snap = await getDocs(q);
+  return snap.docs.map((d) => {
+    const data = d.data();
+    const created =
+      data.created_at instanceof Timestamp
+        ? data.created_at.toDate().toISOString()
+        : data.created_at ?? "";
+    return {
+      id: d.id,
+      first_name: data.first_name ?? null,
+      last_name: data.last_name ?? null,
+      full_name: data.full_name ?? null,
+      email: data.email ?? "",
+      role: (data.role as "student" | "admin") ?? "student",
+      created_at: created,
+    };
+  });
+}
+
+interface CreateForm {
+  first_name: string;
+  last_name: string;
+  email: string;
+  role: "student" | "admin";
 }
 
 export function UserAccounts() {
@@ -56,6 +85,18 @@ export function UserAccounts() {
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [selectedUserForPassword, setSelectedUserForPassword] = useState<ProfileRow | null>(null);
   const [recoveryLink, setRecoveryLink] = useState<string | null>(null);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [createForm, setCreateForm] = useState<CreateForm>({
+    first_name: "",
+    last_name: "",
+    email: "",
+    role: "student",
+  });
+  const [isCreating, setIsCreating] = useState(false);
+  const [createdUserCreds, setCreatedUserCreds] = useState<{
+    email: string;
+    password: string;
+  } | null>(null);
 
   const { data: users = [], isPending, isFetching } = useQuery({
     queryKey: ["profiles"],
@@ -87,37 +128,37 @@ export function UserAccounts() {
   const handleSaveEdit = async (userId: string) => {
     setIsSaving(true);
     const fullName = `${editForm.first_name} ${editForm.last_name}`.trim();
-    const { error } = await supabase
-      .from("profiles")
-      .update({
+    try {
+      await updateDoc(doc(db, "profiles", userId), {
         first_name: editForm.first_name.trim(),
         last_name: editForm.last_name.trim(),
         full_name: fullName || null,
-        email: editForm.email.trim().toLowerCase(),
-      })
-      .eq("id", userId);
-    setIsSaving(false);
-    if (error) {
-      toast.error(error.message || "Failed to update user.");
-      return;
+        // email is locked here — change it via Firebase Auth admin if needed.
+      });
+      toast.success("User information updated successfully!");
+      setEditingUserId(null);
+      queryClient.invalidateQueries({ queryKey: ["profiles"] });
+    } catch (err) {
+      toast.error((err as Error).message || "Failed to update user.");
+    } finally {
+      setIsSaving(false);
     }
-    toast.success("User information updated successfully!");
-    setEditingUserId(null);
-    queryClient.invalidateQueries({ queryKey: ["profiles"] });
   };
 
   const handleGeneratePassword = async (u: ProfileRow) => {
     setResettingId(u.id);
     try {
-      const redirectTo = `${window.location.origin}/reset-password`;
-      const { data, error } = await supabase.functions.invoke("reset-user-password", {
-        body: { userId: u.id, redirectTo },
+      const idToken = await auth.currentUser?.getIdToken();
+      const res = await fetch("/api/admin/reset-password", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${idToken ?? ""}`,
+        },
+        body: JSON.stringify({ userId: u.id }),
       });
-      if (error) {
-        toast.error(error.message || "Failed to send recovery email.");
-        return;
-      }
-      if (!data?.ok) {
+      const data = await res.json();
+      if (!res.ok || !data?.ok) {
         toast.error(data?.error || "Failed to send recovery email.");
         return;
       }
@@ -128,6 +169,44 @@ export function UserAccounts() {
       toast.error(err?.message ?? "Failed to send recovery email.");
     } finally {
       setResettingId(null);
+    }
+  };
+
+  const handleCreateUser = async () => {
+    if (!createForm.email.trim() || !createForm.first_name.trim()) {
+      toast.error("Email and first name are required.");
+      return;
+    }
+    setIsCreating(true);
+    try {
+      const idToken = await auth.currentUser?.getIdToken();
+      const res = await fetch("/api/admin/create-user", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${idToken ?? ""}`,
+        },
+        body: JSON.stringify({
+          email: createForm.email.trim().toLowerCase(),
+          first_name: createForm.first_name.trim(),
+          last_name: createForm.last_name.trim(),
+          role: createForm.role,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data?.ok) {
+        toast.error(data?.error || "Failed to create user.");
+        return;
+      }
+      setCreatedUserCreds({ email: data.email, password: data.password });
+      setShowCreateModal(false);
+      setCreateForm({ first_name: "", last_name: "", email: "", role: "student" });
+      queryClient.invalidateQueries({ queryKey: ["profiles"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-user-counts"] });
+    } catch (err: any) {
+      toast.error(err?.message ?? "Failed to create user.");
+    } finally {
+      setIsCreating(false);
     }
   };
 
@@ -167,8 +246,8 @@ export function UserAccounts() {
             </div>
           </div>
 
-          <div className="flex items-center justify-between gap-3">
-            <div className="relative max-w-md flex-1">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div className="relative max-w-md flex-1 min-w-[260px]">
               <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-blue-500 pointer-events-none" />
               <Input
                 type="text"
@@ -178,7 +257,16 @@ export function UserAccounts() {
                 className="pl-12 h-12 text-base bg-white border-2 border-blue-200 shadow-sm rounded-xl focus-visible:border-blue-500 focus-visible:ring-blue-200 placeholder:text-gray-400"
               />
             </div>
-            <FetchingBadge isFetching={isFetching} isPending={isPending} />
+            <div className="flex items-center gap-2">
+              <FetchingBadge isFetching={isFetching} isPending={isPending} />
+              <Button
+                onClick={() => setShowCreateModal(true)}
+                className="bg-blue-600 hover:bg-blue-700 text-white shadow-sm"
+              >
+                <UserPlus className="w-4 h-4 mr-2" />
+                New User
+              </Button>
+            </div>
           </div>
         </div>
 
@@ -387,6 +475,145 @@ export function UserAccounts() {
                 Done
               </Button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {showCreateModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 px-4">
+          <div className="bg-white rounded-3xl p-8 shadow-2xl border-2 border-blue-200 max-w-md w-full">
+            <div className="text-center mb-6">
+              <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-lg">
+                <UserPlus className="w-8 h-8 text-white" />
+              </div>
+              <h2 className="mb-1">Create New User</h2>
+              <p className="text-sm text-muted-foreground">
+                A temporary password will be generated. Share it with the user privately.
+              </p>
+            </div>
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label htmlFor="cf_first">First name</Label>
+                  <Input
+                    id="cf_first"
+                    value={createForm.first_name}
+                    onChange={(e) =>
+                      setCreateForm({ ...createForm, first_name: e.target.value })
+                    }
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="cf_last">Last name</Label>
+                  <Input
+                    id="cf_last"
+                    value={createForm.last_name}
+                    onChange={(e) =>
+                      setCreateForm({ ...createForm, last_name: e.target.value })
+                    }
+                    className="mt-1"
+                  />
+                </div>
+              </div>
+              <div>
+                <Label htmlFor="cf_email">Email</Label>
+                <Input
+                  id="cf_email"
+                  type="email"
+                  value={createForm.email}
+                  onChange={(e) =>
+                    setCreateForm({ ...createForm, email: e.target.value })
+                  }
+                  className="mt-1"
+                />
+              </div>
+              <div>
+                <Label htmlFor="cf_role">Role</Label>
+                <select
+                  id="cf_role"
+                  value={createForm.role}
+                  onChange={(e) =>
+                    setCreateForm({
+                      ...createForm,
+                      role: e.target.value as "student" | "admin",
+                    })
+                  }
+                  className="mt-1 w-full h-10 px-3 rounded-md border border-input bg-background text-sm"
+                >
+                  <option value="student">Student</option>
+                  <option value="admin">Admin</option>
+                </select>
+              </div>
+            </div>
+            <div className="flex gap-2 mt-6">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => setShowCreateModal(false)}
+                disabled={isCreating}
+              >
+                Cancel
+              </Button>
+              <Button
+                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
+                onClick={handleCreateUser}
+                disabled={isCreating}
+              >
+                {isCreating ? "Creating…" : "Create User"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {createdUserCreds && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 px-4">
+          <div className="bg-white rounded-3xl p-8 shadow-2xl border-2 border-green-200 max-w-md w-full">
+            <div className="text-center mb-6">
+              <div className="w-16 h-16 bg-green-600 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-lg">
+                <CheckCircle className="w-8 h-8 text-white" />
+              </div>
+              <h2 className="mb-1">User Created</h2>
+              <p className="text-sm text-muted-foreground">
+                Share these credentials with the user. The temporary password is shown
+                here only once.
+              </p>
+            </div>
+            <div className="space-y-3 mb-6">
+              <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-4">
+                <Label className="text-xs text-blue-700">Email</Label>
+                <p className="font-mono text-sm text-blue-900 mt-1 break-all">
+                  {createdUserCreds.email}
+                </p>
+              </div>
+              <div className="bg-amber-50 border-2 border-amber-200 rounded-xl p-4">
+                <Label className="text-xs text-amber-700">Temporary password</Label>
+                <div className="flex items-center gap-2 mt-1">
+                  <code className="font-mono text-sm text-amber-900 flex-1 break-all">
+                    {createdUserCreds.password}
+                  </code>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-8 w-8 p-0 hover:bg-amber-100"
+                    onClick={() => {
+                      navigator.clipboard.writeText(createdUserCreds.password);
+                      toast.success("Password copied.");
+                    }}
+                  >
+                    <Copy className="w-4 h-4 text-amber-700" />
+                  </Button>
+                </div>
+              </div>
+            </div>
+            <Button
+              className="w-full bg-green-600 hover:bg-green-700 text-white"
+              onClick={() => setCreatedUserCreds(null)}
+            >
+              <CheckCircle className="w-4 h-4 mr-2" />
+              Done
+            </Button>
           </div>
         </div>
       )}
