@@ -114,7 +114,7 @@ export function TroubleshootingGuideModal({
         role="dialog"
         aria-modal="true"
         aria-label={`${deviceName} — ${problem.title}`}
-        className="relative w-full max-w-7xl h-full max-h-[92vh] bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-200"
+        className="relative w-full max-w-5xl h-full max-h-[92vh] bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-200"
       >
         <header className="flex items-center justify-between gap-4 px-6 py-4 border-b border-slate-200 bg-white">
           <div className="flex items-center gap-3 min-w-0">
@@ -248,7 +248,7 @@ export function TroubleshootingGuideModal({
             ref={scrollRef}
             className="lg:col-span-2 overflow-y-auto bg-white"
           >
-            <div className="px-6 py-8 max-w-3xl mx-auto">
+            <div className="px-6 py-8 max-w-xl mx-auto">
               <h3 className="text-xl text-slate-900 mb-1">
                 Step-by-Step Guide
               </h3>
