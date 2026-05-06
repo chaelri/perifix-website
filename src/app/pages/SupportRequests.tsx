@@ -181,7 +181,15 @@ function ThreadView({
             key={`${isHidden ? "h" : "v"}-${m.id}`}
             className={`group flex flex-col ${isMe ? "items-end" : "items-start"}`}
           >
-            <div className={`flex items-center gap-2 mb-1 px-1 ${tone.meta}`}>
+            {/* Meta row mirrors the bubble alignment: when the bubble is on
+                the right (isMe), reverse the row so the role label sits flush
+                with the bubble's right edge instead of being pushed inward by
+                the time/hide-button. */}
+            <div
+              className={`flex items-center gap-2 mb-1 px-1 ${tone.meta} ${
+                isMe ? "flex-row-reverse" : ""
+              }`}
+            >
               <span className={`text-[10px] font-semibold uppercase tracking-wider ${tone.role}`}>
                 {roleLabel}
               </span>
@@ -197,7 +205,7 @@ function ThreadView({
                 <button
                   type="button"
                   onClick={() => (isHidden ? onUnhide?.(m) : onHide?.(m))}
-                  className="text-gray-500 hover:text-gray-900 opacity-0 group-hover:opacity-100 transition-opacity"
+                  className="text-gray-500 hover:text-gray-900 hidden group-hover:inline-flex"
                   title={isHidden ? "Unhide (visible to student again)" : "Hide from student"}
                   aria-label={isHidden ? "Unhide message" : "Hide message"}
                 >
@@ -822,10 +830,12 @@ export function SupportRequests() {
               className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-5xl bg-white rounded-3xl shadow-2xl z-[101] overflow-hidden max-h-[90vh] flex flex-col mx-4"
             >
               {/* Header */}
-              <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-5 flex items-center justify-between">
+              <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-5 py-3.5 flex items-center justify-between shrink-0">
                 <div>
-                  <h2 className="text-white text-2xl">Support Request Details</h2>
-                  <p className="text-sm text-blue-100">
+                  <h2 className="text-white text-lg leading-tight">
+                    Support Request Details
+                  </h2>
+                  <p className="text-xs text-blue-100">
                     Submitted {formatDate(selectedRequest.created_at)}
                   </p>
                 </div>
@@ -833,9 +843,9 @@ export function SupportRequests() {
                   variant="ghost"
                   size="icon"
                   onClick={() => setViewModalOpen(false)}
-                  className="text-white hover:bg-white/20 rounded-xl"
+                  className="text-white hover:bg-white/20 rounded-xl h-8 w-8"
                 >
-                  <span className="text-2xl">&times;</span>
+                  <XIcon className="w-5 h-5" />
                 </Button>
               </div>
 
@@ -844,8 +854,8 @@ export function SupportRequests() {
                   visible without scrolling the whole modal. */}
               <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-0 lg:divide-x lg:divide-gray-200 min-h-0">
                 {/* Left column — ticket details */}
-                <div className="overflow-y-auto p-6">
-                  <div className="space-y-6">
+                <div className="overflow-y-auto p-5">
+                  <div className="space-y-4">
                   {/* Edit toggle */}
                   <div className="flex items-center justify-end gap-2">
                     {editing ? (
@@ -876,16 +886,18 @@ export function SupportRequests() {
                         onClick={() => startEdit(selectedRequest)}
                         className="border-blue-300 text-blue-700"
                       >
-                        <Pencil className="w-4 h-4 mr-1" />
+                        <Pencil className="w-3.5 h-3.5 mr-1" />
                         Edit fields
                       </Button>
                     )}
                   </div>
 
                   {/* User Info */}
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <Label className="text-sm font-medium text-gray-600">Name</Label>
+                      <Label className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+                        Name
+                      </Label>
                       {editing ? (
                         <Input
                           className="mt-1"
@@ -893,11 +905,13 @@ export function SupportRequests() {
                           onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
                         />
                       ) : (
-                        <p className="text-lg text-gray-900 mt-1">{selectedRequest.name}</p>
+                        <p className="text-sm text-gray-900 mt-0.5">{selectedRequest.name}</p>
                       )}
                     </div>
-                    <div>
-                      <Label className="text-sm font-medium text-gray-600">Email</Label>
+                    <div className="min-w-0">
+                      <Label className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+                        Email
+                      </Label>
                       {editing ? (
                         <Input
                           type="email"
@@ -906,15 +920,19 @@ export function SupportRequests() {
                           onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
                         />
                       ) : (
-                        <p className="text-lg text-gray-900 mt-1">{selectedRequest.email}</p>
+                        <p className="text-sm text-gray-900 mt-0.5 truncate">
+                          {selectedRequest.email}
+                        </p>
                       )}
                     </div>
                   </div>
 
                   {/* Device & Issue */}
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <Label className="text-sm font-medium text-gray-600">Device</Label>
+                      <Label className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+                        Device
+                      </Label>
                       {editing ? (
                         <Input
                           className="mt-1"
@@ -922,11 +940,15 @@ export function SupportRequests() {
                           onChange={(e) => setEditForm({ ...editForm, device: e.target.value })}
                         />
                       ) : (
-                        <p className="text-lg text-gray-900 mt-1">{selectedRequest.device}</p>
+                        <p className="text-sm text-gray-900 mt-0.5">
+                          {selectedRequest.device || "—"}
+                        </p>
                       )}
                     </div>
                     <div>
-                      <Label className="text-sm font-medium text-gray-600">Issue Type</Label>
+                      <Label className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+                        Issue Type
+                      </Label>
                       {editing ? (
                         <Input
                           className="mt-1"
@@ -934,38 +956,44 @@ export function SupportRequests() {
                           onChange={(e) => setEditForm({ ...editForm, issue: e.target.value })}
                         />
                       ) : (
-                        <p className="text-lg text-gray-900 mt-1">{selectedRequest.issue}</p>
+                        <p className="text-sm text-gray-900 mt-0.5">
+                          {selectedRequest.issue || "—"}
+                        </p>
                       )}
                     </div>
                   </div>
 
                   {/* Description */}
                   <div>
-                    <Label className="text-sm font-medium text-gray-600 mb-2 block">
+                    <Label className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5 block">
                       Problem Description
                     </Label>
                     {editing ? (
                       <Textarea
-                        rows={5}
+                        rows={4}
                         value={editForm.description}
                         onChange={(e) =>
                           setEditForm({ ...editForm, description: e.target.value })
                         }
                       />
                     ) : (
-                      <div className="bg-gray-50 rounded-xl p-4 border-2 border-gray-200">
-                        <p className="text-gray-800 leading-relaxed">
+                      <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
+                        <p className="text-sm text-gray-800 leading-relaxed whitespace-pre-wrap">
                           {selectedRequest.description}
                         </p>
                       </div>
                     )}
                   </div>
 
-                  {/* Status Update */}
+                  {/* Status Update — three equal-width buttons in one row,
+                      compact size so they fit even on a narrow column. */}
                   <div>
-                    <p className="text-sm font-medium text-gray-600 mb-3">Update Status</p>
-                    <div className="flex flex-wrap gap-3">
+                    <Label className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2 block">
+                      Update Status
+                    </Label>
+                    <div className="grid grid-cols-3 gap-2">
                       <Button
+                        size="sm"
                         onClick={() =>
                           updateRequestStatus(selectedRequest.id, "pending")
                         }
@@ -974,14 +1002,15 @@ export function SupportRequests() {
                         }
                         className={
                           selectedRequest.status === "pending"
-                            ? "bg-orange-600 hover:bg-orange-700"
-                            : "border-orange-300 text-orange-700 hover:bg-orange-100"
+                            ? "bg-orange-600 hover:bg-orange-700 text-xs"
+                            : "border-orange-300 text-orange-700 hover:bg-orange-100 text-xs"
                         }
                       >
-                        <Clock className="w-4 h-4 mr-2" />
-                        Mark as Pending
+                        <Clock className="w-3.5 h-3.5 mr-1" />
+                        Pending
                       </Button>
                       <Button
+                        size="sm"
                         onClick={() =>
                           updateRequestStatus(selectedRequest.id, "priority")
                         }
@@ -990,14 +1019,15 @@ export function SupportRequests() {
                         }
                         className={
                           selectedRequest.status === "priority"
-                            ? "bg-red-600 hover:bg-red-700"
-                            : "border-red-300 text-red-700 hover:bg-red-100"
+                            ? "bg-red-600 hover:bg-red-700 text-xs"
+                            : "border-red-300 text-red-700 hover:bg-red-100 text-xs"
                         }
                       >
-                        <Flag className="w-4 h-4 mr-2" />
-                        Mark as Priority
+                        <Flag className="w-3.5 h-3.5 mr-1" />
+                        Priority
                       </Button>
                       <Button
+                        size="sm"
                         onClick={() =>
                           updateRequestStatus(selectedRequest.id, "resolved")
                         }
@@ -1006,12 +1036,12 @@ export function SupportRequests() {
                         }
                         className={
                           selectedRequest.status === "resolved"
-                            ? "bg-green-600 hover:bg-green-700"
-                            : "border-green-300 text-green-700 hover:bg-green-100"
+                            ? "bg-green-600 hover:bg-green-700 text-xs"
+                            : "border-green-300 text-green-700 hover:bg-green-100 text-xs"
                         }
                       >
-                        <CheckCircle className="w-4 h-4 mr-2" />
-                        Mark as Resolved
+                        <CheckCircle className="w-3.5 h-3.5 mr-1" />
+                        Resolved
                       </Button>
                     </div>
                   </div>
@@ -1019,8 +1049,10 @@ export function SupportRequests() {
                 </div>
 
                 {/* Right column — conversation thread + composer.
-                    Thread takes remaining height; composer pinned at bottom. */}
-                <div className="flex flex-col p-6 bg-gray-50/40 min-h-0">
+                    Thread takes remaining height; composer pinned at bottom.
+                    Distinct gray background separates the chat panel from the
+                    ticket details on the left. */}
+                <div className="flex flex-col p-5 bg-slate-100/70 min-h-0">
                   <div className="flex items-center gap-2 mb-3">
                     <MessageCircle className="w-4 h-4 text-blue-700" />
                     <p className="text-sm font-medium text-gray-700">Conversation</p>
