@@ -57,12 +57,14 @@ function ScrollToTop() {
 }
 
 function AppContent() {
+  const location = useLocation();
   return (
     <div className="min-h-screen flex flex-col">
       <ScrollToTop />
       <Navbar />
       <main className="flex-grow">
-        <Routes>
+        <div key={location.pathname} className="page-transition">
+        <Routes location={location}>
           <Route path="/" element={<Home />} />
           <Route 
             path="/troubleshooting" 
@@ -147,6 +149,7 @@ function AppContent() {
           {/* Unknown URLs → home, so the page never goes blank. */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+        </div>
       </main>
       <Footer />
       <Toaster />
