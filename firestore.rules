@@ -47,6 +47,14 @@ service cloud.firestore {
                            'last_reply_by', 'status', 'updated_at'])
             && request.resource.data.status == 'pending');
       allow delete: if isAdmin();
+
+      // Admin-only archive of messages that admin has hidden from the student.
+      // The original message text is moved here so the student can never read
+      // it back via direct Firestore reads — even though they can read the
+      // parent doc, subcollections do NOT inherit parent rules.
+      match /hidden_messages/{messageId} {
+        allow read, write: if isAdmin();
+      }
     }
 
     // devices — public read; admin write

@@ -8,6 +8,7 @@ import {
   Filter,
   Search as SearchIcon,
   Eye,
+  EyeOff,
   Trash2,
   Flag,
   Pencil,
@@ -31,11 +32,13 @@ import {
   collection,
   deleteDoc,
   doc,
+  getDoc,
   getDocs,
   onSnapshot,
   orderBy,
   query,
   serverTimestamp,
+  setDoc,
   Timestamp,
   updateDoc,
 } from "firebase/firestore";
@@ -98,14 +101,32 @@ function threadMessages(r: SupportRequest): ThreadMessage[] {
   return [];
 }
 
+type DisplayMessage = ThreadMessage & { hidden: boolean };
+
 function ThreadView({
   messages,
+  hiddenMessages = [],
   adminUid,
+  onHide,
+  onUnhide,
 }: {
   messages: ThreadMessage[];
+  hiddenMessages?: ThreadMessage[];
   adminUid?: string;
+  onHide?: (m: ThreadMessage) => void;
+  onUnhide?: (m: ThreadMessage) => void;
 }) {
-  if (messages.length === 0) {
+  // Merge visible + admin-only-hidden messages, sort by their original `at`
+  // so the conversation order is preserved even with hidden ones interleaved.
+  const merged: DisplayMessage[] = useMemo(() => {
+    const visible = messages.map((m) => ({ ...m, hidden: false }));
+    const hidden = hiddenMessages.map((m) => ({ ...m, hidden: true }));
+    return [...visible, ...hidden].sort((a, b) =>
+      (a.at || "") < (b.at || "") ? -1 : 1,
+    );
+  }, [messages, hiddenMessages]);
+
+  if (merged.length === 0) {
     return (
       <div className="rounded-lg border border-dashed border-gray-200 p-4 text-center text-xs text-gray-500">
         No messages yet. Send the first reply below.
@@ -114,37 +135,81 @@ function ThreadView({
   }
   return (
     <div className="space-y-2 overflow-y-auto pr-1 flex-1 min-h-0">
-      {messages.map((m) => {
+      {merged.map((m) => {
         const isMe = adminUid && m.by_uid === adminUid;
         const isAdmin = m.by_role === "admin";
+        const isHidden = m.hidden;
+        const canToggle = m.id !== "legacy" && (onHide || onUnhide);
         return (
           <div
-            key={m.id}
-            className={`rounded-lg border p-3 ${
-              isAdmin
-                ? "bg-emerald-50 border-emerald-200"
-                : "bg-blue-50 border-blue-200"
+            key={`${isHidden ? "h" : "v"}-${m.id}`}
+            className={`group rounded-lg border p-3 transition-opacity ${
+              isHidden
+                ? "bg-gray-50 border-gray-300 border-dashed opacity-80"
+                : isAdmin
+                  ? "bg-emerald-50 border-emerald-200"
+                  : "bg-blue-50 border-blue-200"
             }`}
           >
-            <div className="flex items-center justify-between mb-1">
-              <p
-                className={`text-[10px] font-semibold uppercase tracking-wider ${
-                  isAdmin ? "text-emerald-700" : "text-blue-700"
-                }`}
-              >
-                {isAdmin ? (isMe ? "You (admin)" : "Admin") : "User"}
-              </p>
-              <p
-                className={`text-[10px] ${
-                  isAdmin ? "text-emerald-700/70" : "text-blue-700/70"
-                }`}
-              >
-                {m.at ? new Date(m.at).toLocaleString() : ""}
-              </p>
+            <div className="flex items-center justify-between mb-1 gap-2">
+              <div className="flex items-center gap-2 min-w-0">
+                <p
+                  className={`text-[10px] font-semibold uppercase tracking-wider ${
+                    isHidden
+                      ? "text-gray-600"
+                      : isAdmin
+                        ? "text-emerald-700"
+                        : "text-blue-700"
+                  }`}
+                >
+                  {isAdmin ? (isMe ? "You (admin)" : "Admin") : "User"}
+                </p>
+                {isHidden && (
+                  <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold uppercase tracking-wider bg-gray-200 text-gray-700">
+                    Hidden from student
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <p
+                  className={`text-[10px] ${
+                    isHidden
+                      ? "text-gray-500"
+                      : isAdmin
+                        ? "text-emerald-700/70"
+                        : "text-blue-700/70"
+                  }`}
+                >
+                  {m.at ? new Date(m.at).toLocaleString() : ""}
+                </p>
+                {canToggle && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      isHidden ? onUnhide?.(m) : onHide?.(m)
+                    }
+                    className="text-gray-500 hover:text-gray-900 opacity-60 group-hover:opacity-100 transition-opacity"
+                    title={
+                      isHidden ? "Unhide (visible to student again)" : "Hide from student"
+                    }
+                    aria-label={isHidden ? "Unhide message" : "Hide message"}
+                  >
+                    {isHidden ? (
+                      <Eye className="w-3.5 h-3.5" />
+                    ) : (
+                      <EyeOff className="w-3.5 h-3.5" />
+                    )}
+                  </button>
+                )}
+              </div>
             </div>
             <p
               className={`text-sm whitespace-pre-wrap ${
-                isAdmin ? "text-emerald-900" : "text-blue-900"
+                isHidden
+                  ? "text-gray-700"
+                  : isAdmin
+                    ? "text-emerald-900"
+                    : "text-blue-900"
               }`}
             >
               {m.text}
@@ -205,6 +270,9 @@ export function SupportRequests() {
   const [adminReply, setAdminReply] = useState("");
   const [askForResponse, setAskForResponse] = useState(false);
   const [sendingReply, setSendingReply] = useState(false);
+  // Admin-only archive of messages hidden from the student. Sourced from the
+  // hidden_messages subcollection of the currently-open ticket.
+  const [hiddenMessages, setHiddenMessages] = useState<ThreadMessage[]>([]);
 
   const { data: requests = [], isPending, isFetching } = useQuery({
     queryKey: ["support_requests"],
@@ -227,6 +295,40 @@ export function SupportRequests() {
     });
     return () => unsub();
   }, [user, navigate, queryClient]);
+
+  // Subscribe to the open ticket's hidden_messages subcollection so admin
+  // sees archived messages live (e.g. another admin tab toggling visibility).
+  useEffect(() => {
+    if (!selectedRequest) {
+      setHiddenMessages([]);
+      return;
+    }
+    const ref = collection(
+      db,
+      "support_requests",
+      selectedRequest.id,
+      "hidden_messages",
+    );
+    const unsub = onSnapshot(ref, (snap) => {
+      setHiddenMessages(
+        snap.docs.map((d) => {
+          const data = d.data();
+          const at = data.at;
+          return {
+            id: d.id,
+            text: (data.text as string) ?? "",
+            at:
+              typeof at === "string"
+                ? at
+                : (at as Timestamp | undefined)?.toDate?.().toISOString?.() ?? "",
+            by_uid: (data.by_uid as string) ?? "",
+            by_role: (data.by_role as "admin" | "student") ?? "admin",
+          };
+        }),
+      );
+    });
+    return () => unsub();
+  }, [selectedRequest?.id]);
 
   const filteredRequests = useMemo(() => {
     let filtered = [...requests];
@@ -299,6 +401,84 @@ export function SupportRequests() {
       toast.error((err as Error).message || "Failed to send reply.");
     } finally {
       setSendingReply(false);
+    }
+  };
+
+  // Hide a message from the student. The original is moved to a subcollection
+  // that only admins can read, then removed from the doc's messages[] so the
+  // student can no longer fetch it — even via direct Firestore reads.
+  const hideMessage = async (msg: ThreadMessage) => {
+    if (!selectedRequest) return;
+    if (msg.id === "legacy") {
+      toast.error("Legacy messages can't be hidden.");
+      return;
+    }
+    try {
+      const reqRef = doc(db, "support_requests", selectedRequest.id);
+      const snap = await getDoc(reqRef);
+      const current = ((snap.data()?.messages as ThreadMessage[] | undefined) ?? []);
+      // 1. Archive the original to the admin-only subcollection.
+      await setDoc(
+        doc(db, "support_requests", selectedRequest.id, "hidden_messages", msg.id),
+        {
+          id: msg.id,
+          text: msg.text,
+          at: msg.at,
+          by_uid: msg.by_uid,
+          by_role: msg.by_role,
+          hidden_at: serverTimestamp(),
+          hidden_by_uid: auth.currentUser?.uid ?? "",
+        },
+      );
+      // 2. Strip from the doc's messages array. Overwrite the whole array
+      //    rather than arrayRemove() to avoid deep-equality mismatches when
+      //    Firestore stored `at` as a Timestamp but we hold an ISO string.
+      const next = current.filter((m) => m.id !== msg.id);
+      await updateDoc(reqRef, {
+        messages: next,
+        updated_at: serverTimestamp(),
+      });
+      // Optimistic UI: subscription will also refresh, but update now.
+      setSelectedRequest((prev) =>
+        prev ? { ...prev, messages: prev.messages.filter((m) => m.id !== msg.id) } : prev,
+      );
+      queryClient.setQueryData<SupportRequest[]>(["support_requests"], (rows) =>
+        (rows ?? []).map((r) =>
+          r.id === selectedRequest.id
+            ? { ...r, messages: r.messages.filter((m) => m.id !== msg.id) }
+            : r,
+        ),
+      );
+      toast.success("Message hidden from student.");
+    } catch (err) {
+      toast.error((err as Error).message || "Failed to hide message.");
+    }
+  };
+
+  // Restore a previously-hidden message: put it back into messages[] and
+  // delete the subcollection record.
+  const unhideMessage = async (msg: ThreadMessage) => {
+    if (!selectedRequest) return;
+    try {
+      await updateDoc(doc(db, "support_requests", selectedRequest.id), {
+        messages: arrayUnion({
+          id: msg.id,
+          text: msg.text,
+          at: msg.at,
+          by_uid: msg.by_uid,
+          by_role: msg.by_role,
+        }),
+        updated_at: serverTimestamp(),
+      });
+      await deleteDoc(
+        doc(db, "support_requests", selectedRequest.id, "hidden_messages", msg.id),
+      );
+      setSelectedRequest((prev) =>
+        prev ? { ...prev, messages: [...prev.messages, msg] } : prev,
+      );
+      toast.success("Message restored.");
+    } catch (err) {
+      toast.error((err as Error).message || "Failed to unhide message.");
     }
   };
 
@@ -845,7 +1025,10 @@ export function SupportRequests() {
                   </div>
                   <ThreadView
                     messages={threadMessages(selectedRequest)}
+                    hiddenMessages={hiddenMessages}
                     adminUid={user?.id}
+                    onHide={hideMessage}
+                    onUnhide={unhideMessage}
                   />
 
                   {/* Reply composer */}
