@@ -473,6 +473,9 @@ function ProblemModal({ deviceSlug, initial, onClose, onSaved }: ProblemModalPro
       : [{ step: 1, title: "", description: "", image: "" }],
   );
   const [saving, setSaving] = useState(false);
+  // Storage URLs queued for deletion. Flushed only after a successful Save so
+  // Cancel doesn't strand the DB pointing at files we already nuked.
+  const [imagesToDelete, setImagesToDelete] = useState<string[]>([]);
 
   const onTitleChange = (v: string) => {
     setTitle(v);
@@ -480,6 +483,12 @@ function ProblemModal({ deviceSlug, initial, onClose, onSaved }: ProblemModalPro
   };
 
   const updateStep = (idx: number, patch: Partial<Step>) => {
+    if (patch.image !== undefined) {
+      const old = steps[idx]?.image;
+      if (old && old !== patch.image) {
+        setImagesToDelete((d) => [...d, old]);
+      }
+    }
     setSteps((prev) => prev.map((s, i) => (i === idx ? { ...s, ...patch } : s)));
   };
 
@@ -494,6 +503,8 @@ function ProblemModal({ deviceSlug, initial, onClose, onSaved }: ProblemModalPro
   };
 
   const removeStep = (idx: number) => {
+    const removed = steps[idx];
+    if (removed?.image) setImagesToDelete((d) => [...d, removed.image]);
     setSteps((prev) => prev.filter((_, i) => i !== idx).map((s, i) => ({ ...s, step: i + 1 })));
   };
 
@@ -534,6 +545,17 @@ function ProblemModal({ deviceSlug, initial, onClose, onSaved }: ProblemModalPro
         await batch.commit();
       } else {
         await setDoc(doc(db, "problems", newId), payload, { merge: true });
+      }
+      // Best-effort cleanup of step images that were Replaced/Removed during
+      // this edit. Skip any URL still referenced in cleanSteps (defensive
+      // guard against double-toggles within the same session).
+      const stillReferenced = new Set(cleanSteps.map((s) => s.image).filter(Boolean));
+      for (const url of imagesToDelete) {
+        if (stillReferenced.has(url)) continue;
+        if (!url.includes("firebasestorage.googleapis.com")) continue;
+        const m = url.match(/\/o\/([^?]+)/);
+        if (!m) continue;
+        await deleteObject(storageRef(storage, decodeURIComponent(m[1]))).catch(() => undefined);
       }
       toast.success(initial ? "Problem updated." : "Problem created.");
       onSaved();
