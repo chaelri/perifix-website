@@ -20,7 +20,6 @@ import {
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
-import { Switch } from "../components/ui/switch";
 import { Textarea } from "../components/ui/textarea";
 import { useAuth } from "../contexts/AuthContext";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -279,7 +278,6 @@ export function SupportRequests() {
   });
   const [savingEdit, setSavingEdit] = useState(false);
   const [adminReply, setAdminReply] = useState("");
-  const [askForResponse, setAskForResponse] = useState(false);
   const [sendingReply, setSendingReply] = useState(false);
   // Admin-only archive of messages hidden from the student. Sourced from the
   // hidden_messages subcollection of the currently-open ticket.
@@ -402,28 +400,23 @@ export function SupportRequests() {
         by_uid: me?.uid ?? "",
         by_role: "admin",
       };
-      const newStatus = askForResponse ? "waiting_for_response" : selectedRequest.status;
       await updateDoc(doc(db, "support_requests", selectedRequest.id), {
         messages: arrayUnion(message),
-        status: newStatus,
         updated_at: serverTimestamp(),
       });
       // Optimistic UI: append locally without re-fetching.
       setSelectedRequest((prev) =>
-        prev
-          ? { ...prev, messages: [...prev.messages, message], status: newStatus }
-          : prev,
+        prev ? { ...prev, messages: [...prev.messages, message] } : prev,
       );
       queryClient.setQueryData<SupportRequest[]>(["support_requests"], (rows) =>
         (rows ?? []).map((r) =>
           r.id === selectedRequest.id
-            ? { ...r, messages: [...r.messages, message], status: newStatus }
+            ? { ...r, messages: [...r.messages, message] }
             : r,
         ),
       );
       setAdminReply("");
-      setAskForResponse(false);
-      toast.success(askForResponse ? "Reply sent — user can now respond." : "Reply sent.");
+      toast.success("Reply sent.");
     } catch (err) {
       toast.error((err as Error).message || "Failed to send reply.");
     } finally {
@@ -1084,34 +1077,6 @@ export function SupportRequests() {
 
                   {/* Reply composer */}
                   <div className="mt-3 space-y-2 shrink-0">
-                    <label
-                      htmlFor="ask-toggle"
-                      className={`flex items-center justify-between rounded-lg border px-3 py-2 cursor-pointer transition-colors ${
-                        askForResponse
-                          ? "border-blue-300 bg-blue-50"
-                          : "border-gray-200 bg-white hover:bg-gray-50"
-                      }`}
-                    >
-                      <div className="flex items-center gap-2 text-sm">
-                        <MessageCircle
-                          className={`w-4 h-4 ${
-                            askForResponse ? "text-blue-700" : "text-gray-500"
-                          }`}
-                        />
-                        <span
-                          className={
-                            askForResponse ? "text-blue-900" : "text-gray-700"
-                          }
-                        >
-                          Ask user for a response after sending
-                        </span>
-                      </div>
-                      <Switch
-                        id="ask-toggle"
-                        checked={askForResponse}
-                        onCheckedChange={setAskForResponse}
-                      />
-                    </label>
                     <div className="rounded-lg border-2 border-gray-200 bg-white">
                       <Textarea
                         placeholder="Write a reply to the user…"
