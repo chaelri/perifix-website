@@ -16,6 +16,7 @@ import {
   UserPlus,
   Trash2,
   AlertTriangle,
+  Shield,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "../contexts/AuthContext";
@@ -330,11 +331,32 @@ export function UserAccounts() {
                 "(no name)";
               const initial = (u.first_name?.[0] || u.email[0] || "?").toUpperCase();
               const isSelf = u.id === user?.id;
+              const isAdminRole = u.role === "admin";
               return (
-                <Card key={u.id} className="p-4 flex flex-col">
+                <Card
+                  key={u.id}
+                  className={`p-4 flex flex-col ${
+                    isAdminRole
+                      ? "border-2 border-amber-300 bg-amber-50/40"
+                      : ""
+                  }`}
+                >
                   <div className="flex items-start gap-3 mb-3">
-                    <div className="w-10 h-10 shrink-0 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 text-white flex items-center justify-center text-sm font-semibold shadow-sm">
-                      {initial}
+                    <div className="relative shrink-0">
+                      <div
+                        className={`w-10 h-10 rounded-full bg-gradient-to-br ${
+                          isAdminRole
+                            ? "from-amber-400 to-amber-600"
+                            : "from-blue-500 to-blue-700"
+                        } text-white flex items-center justify-center text-sm font-semibold shadow-sm`}
+                      >
+                        {initial}
+                      </div>
+                      {isAdminRole && (
+                        <span className="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-amber-500 rounded-full border-2 border-white flex items-center justify-center">
+                          <Shield className="w-2 h-2 text-white" />
+                        </span>
+                      )}
                     </div>
                     <div className="min-w-0 flex-1">
                       {isEditing ? (
@@ -347,13 +369,19 @@ export function UserAccounts() {
                         </p>
                       )}
                       {!isEditing && (
-                        <p className="text-xs text-blue-600 truncate">{u.email}</p>
+                        <p
+                          className={`text-xs truncate ${
+                            isAdminRole ? "text-amber-700" : "text-blue-600"
+                          }`}
+                        >
+                          {u.email}
+                        </p>
                       )}
                     </div>
                     <span
                       className={`shrink-0 px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase ${
-                        u.role === "admin"
-                          ? "bg-amber-100 text-amber-700"
+                        isAdminRole
+                          ? "bg-amber-500 text-white"
                           : "bg-blue-100 text-blue-700"
                       }`}
                     >
