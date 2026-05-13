@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "../contexts/AuthContext";
+import { useSupportInbox } from "../hooks/useSupportInbox";
 import { auth, db } from "../utils/firebase/client";
 import {
   arrayUnion,
@@ -295,10 +296,18 @@ export function MySupportRequests() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { markAllRead, latestAdminAt } = useSupportInbox(user?.id, user?.role);
 
   useEffect(() => {
     if (!user) navigate("/login-selection");
   }, [user, navigate]);
+
+  // Visiting this page acknowledges any new admin replies. Re-runs when a new
+  // admin message arrives while the page is already open.
+  useEffect(() => {
+    if (!user) return;
+    markAllRead();
+  }, [user, latestAdminAt, markAllRead]);
 
   const {
     data: tickets = [],
