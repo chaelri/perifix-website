@@ -112,7 +112,7 @@ export function Navbar() {
               <div className="flex items-center gap-2 ml-2 pl-2 border-l border-gray-200">
                 <button
                   type="button"
-                  onClick={() => navigate(hasSupportUnread ? "/my-support-requests" : "/settings")}
+                  onClick={() => navigate(hasSupportUnread ? "/my-tickets" : "/settings")}
                   className="relative flex items-center gap-2 px-3 py-1 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors whitespace-nowrap"
                   title={
                     hasSupportUnread
@@ -193,7 +193,7 @@ export function Navbar() {
                       type="button"
                       onClick={() =>
                         goAndClose(
-                          hasSupportUnread ? "/my-support-requests" : "/settings",
+                          hasSupportUnread ? "/my-tickets" : "/settings",
                         )
                       }
                       className="relative w-full text-left rounded-2xl border border-slate-200 bg-gradient-to-br from-blue-50 to-white p-3.5 shadow-sm hover:border-blue-300 transition-colors"
