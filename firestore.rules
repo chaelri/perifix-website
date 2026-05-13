@@ -32,8 +32,10 @@ service cloud.firestore {
     }
 
     // support_requests — anyone can submit; owner reads + can append to the
-    // conversation thread when admin set status to waiting_for_response;
-    // admin has full control.
+    // conversation thread at any time. Status changes from the student side
+    // are restricted: either unchanged or set to 'pending' (i.e. they can
+    // re-open a resolved/waiting ticket but cannot promote to priority).
+    // Admin has full control.
     match /support_requests/{id} {
       allow create: if true;
       allow read: if isAdmin()
@@ -41,11 +43,11 @@ service cloud.firestore {
       allow update: if isAdmin()
         || (isSignedIn()
             && resource.data.user_id == request.auth.uid
-            && resource.data.status == 'waiting_for_response'
             && request.resource.data.diff(resource.data).affectedKeys()
                  .hasOnly(['messages', 'last_reply', 'last_reply_at',
                            'last_reply_by', 'status', 'updated_at'])
-            && request.resource.data.status == 'pending');
+            && (request.resource.data.status == 'pending'
+                || request.resource.data.status == resource.data.status));
       allow delete: if isAdmin();
 
       // Admin-only archive of messages that admin has hidden from the student.

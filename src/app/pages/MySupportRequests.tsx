@@ -154,11 +154,24 @@ function TicketRow({ ticket }: { ticket: MyTicket }) {
         by_uid: me?.uid ?? "",
         by_role: "student",
       };
-      await updateDoc(doc(db, "support_requests", ticket.id), {
-        messages: arrayUnion(message),
-        status: "pending",
-        updated_at: serverTimestamp(),
-      });
+      // Only flip to "pending" when re-opening a resolved or waiting ticket.
+      // Replying on an already-pending or priority ticket preserves the
+      // admin-set status (so e.g. "priority" doesn't get downgraded).
+      const reopens =
+        ticket.status === "resolved" || ticket.status === "waiting_for_response";
+      await updateDoc(
+        doc(db, "support_requests", ticket.id),
+        reopens
+          ? {
+              messages: arrayUnion(message),
+              status: "pending",
+              updated_at: serverTimestamp(),
+            }
+          : {
+              messages: arrayUnion(message),
+              updated_at: serverTimestamp(),
+            },
+      );
       toast.success("Reply sent. Admin will review it.");
       setReply("");
       queryClient.invalidateQueries({ queryKey: ["my-tickets"] });
