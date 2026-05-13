@@ -272,7 +272,7 @@ export function UserAccounts() {
 
   return (
     <div className="min-h-screen py-12 bg-gradient-to-br from-blue-50 to-white">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="mb-8">
           <div className="flex items-center gap-4 mb-6">
             <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center shadow-lg">
@@ -310,154 +310,172 @@ export function UserAccounts() {
           </div>
         </div>
 
-        <div className="space-y-4">
-          {isPending ? (
-            <ListSkeleton count={4} />
-          ) : filteredUsers.length === 0 ? (
-            <Card className="p-12 text-center">
-              <Users className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-              <h3 className="text-xl mb-2">No Users Found</h3>
-              <p className="text-muted-foreground">
-                {searchQuery ? "Try adjusting your search query" : "No registered users yet"}
-              </p>
-            </Card>
-          ) : (
-            filteredUsers.map((u) => {
+        {isPending ? (
+          <ListSkeleton count={6} />
+        ) : filteredUsers.length === 0 ? (
+          <Card className="p-12 text-center">
+            <Users className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+            <h3 className="text-xl mb-2">No Users Found</h3>
+            <p className="text-muted-foreground">
+              {searchQuery ? "Try adjusting your search query" : "No registered users yet"}
+            </p>
+          </Card>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+            {filteredUsers.map((u) => {
               const isEditing = editingUserId === u.id;
+              const displayName =
+                u.full_name ||
+                [u.first_name, u.last_name].filter(Boolean).join(" ") ||
+                "(no name)";
+              const initial = (u.first_name?.[0] || u.email[0] || "?").toUpperCase();
+              const isSelf = u.id === user?.id;
               return (
-                <Card key={u.id} className="p-6">
-                  <div className="flex flex-col lg:flex-row lg:items-center gap-4">
-                    <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-4">
+                <Card key={u.id} className="p-4 flex flex-col">
+                  <div className="flex items-start gap-3 mb-3">
+                    <div className="w-10 h-10 shrink-0 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 text-white flex items-center justify-center text-sm font-semibold shadow-sm">
+                      {initial}
+                    </div>
+                    <div className="min-w-0 flex-1">
                       {isEditing ? (
-                        <>
-                          <div>
-                            <Label className="text-xs text-gray-500">First Name</Label>
-                            <Input
-                              value={editForm.first_name}
-                              onChange={(e) =>
-                                setEditForm({ ...editForm, first_name: e.target.value })
-                              }
-                              className="mt-1"
-                            />
-                          </div>
-                          <div>
-                            <Label className="text-xs text-gray-500">Last Name</Label>
-                            <Input
-                              value={editForm.last_name}
-                              onChange={(e) =>
-                                setEditForm({ ...editForm, last_name: e.target.value })
-                              }
-                              className="mt-1"
-                            />
-                          </div>
-                          <div>
-                            <Label className="text-xs text-gray-500">Email Address</Label>
-                            <Input
-                              type="email"
-                              value={editForm.email}
-                              onChange={(e) =>
-                                setEditForm({ ...editForm, email: e.target.value })
-                              }
-                              className="mt-1"
-                            />
-                          </div>
-                        </>
+                        <p className="text-xs text-gray-500 uppercase tracking-wide">
+                          Editing user
+                        </p>
                       ) : (
-                        <>
-                          <div>
-                            <Label className="text-xs text-gray-500">First Name</Label>
-                            <p className="mt-1">{u.first_name || "—"}</p>
-                          </div>
-                          <div>
-                            <Label className="text-xs text-gray-500">Last Name</Label>
-                            <p className="mt-1">{u.last_name || "—"}</p>
-                          </div>
-                          <div>
-                            <Label className="text-xs text-gray-500">Email Address</Label>
-                            <p className="mt-1 text-blue-600">{u.email}</p>
-                          </div>
-                        </>
+                        <p className="font-medium text-gray-900 truncate">
+                          {displayName}
+                        </p>
+                      )}
+                      {!isEditing && (
+                        <p className="text-xs text-blue-600 truncate">{u.email}</p>
                       )}
                     </div>
-
-                    <div className="flex gap-2 lg:flex-col lg:w-auto">
-                      {isEditing ? (
-                        <>
-                          <Button
-                            size="sm"
-                            className="bg-green-600 hover:bg-green-700 flex-1 lg:flex-none"
-                            onClick={() => handleSaveEdit(u.id)}
-                            disabled={isSaving}
-                          >
-                            <Save className="w-4 h-4 mr-2" />
-                            {isSaving ? "Saving…" : "Save"}
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="flex-1 lg:flex-none"
-                            onClick={handleCancelEdit}
-                            disabled={isSaving}
-                          >
-                            <X className="w-4 h-4 mr-2" />
-                            Cancel
-                          </Button>
-                        </>
-                      ) : (
-                        <>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="border-blue-300 hover:bg-blue-100 flex-1 lg:flex-none"
-                            onClick={() => handleEditClick(u)}
-                          >
-                            <Edit className="w-4 h-4 mr-2" />
-                            Edit
-                          </Button>
-                          <Button
-                            size="sm"
-                            className="bg-amber-500 hover:bg-amber-600 flex-1 lg:flex-none"
-                            onClick={() => handleGeneratePassword(u)}
-                            disabled={resettingId === u.id}
-                          >
-                            <Key className="w-4 h-4 mr-2" />
-                            {resettingId === u.id ? "Resetting…" : "Generate Password"}
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="border-red-300 text-red-600 hover:bg-red-50 flex-1 lg:flex-none"
-                            onClick={() => setUserToDelete(u)}
-                            disabled={u.id === user?.id}
-                            title={u.id === user?.id ? "You can't delete your own account" : "Delete user"}
-                          >
-                            <Trash2 className="w-4 h-4 mr-2" />
-                            Delete
-                          </Button>
-                        </>
-                      )}
-                    </div>
+                    <span
+                      className={`shrink-0 px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase ${
+                        u.role === "admin"
+                          ? "bg-amber-100 text-amber-700"
+                          : "bg-blue-100 text-blue-700"
+                      }`}
+                    >
+                      {u.role}
+                    </span>
                   </div>
 
-                  <div className="mt-4 pt-4 border-t flex items-center justify-between text-sm text-gray-500">
-                    <div className="flex items-center gap-2">
-                      <span
-                        className={`px-2 py-1 rounded-full text-xs ${
-                          u.role === "admin"
-                            ? "bg-amber-100 text-amber-700"
-                            : "bg-blue-100 text-blue-700"
-                        }`}
-                      >
-                        {u.role === "admin" ? "Admin" : "Student"}
+                  {isEditing ? (
+                    <div className="space-y-2 mb-3">
+                      <div>
+                        <Label className="text-[10px] uppercase tracking-wide text-gray-500">
+                          First Name
+                        </Label>
+                        <Input
+                          value={editForm.first_name}
+                          onChange={(e) =>
+                            setEditForm({ ...editForm, first_name: e.target.value })
+                          }
+                          className="mt-1 h-9"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-[10px] uppercase tracking-wide text-gray-500">
+                          Last Name
+                        </Label>
+                        <Input
+                          value={editForm.last_name}
+                          onChange={(e) =>
+                            setEditForm({ ...editForm, last_name: e.target.value })
+                          }
+                          className="mt-1 h-9"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-[10px] uppercase tracking-wide text-gray-500">
+                          Email Address
+                        </Label>
+                        <Input
+                          type="email"
+                          value={editForm.email}
+                          readOnly
+                          className="mt-1 h-9 bg-gray-50 text-gray-600 cursor-not-allowed"
+                        />
+                      </div>
+                    </div>
+                  ) : null}
+
+                  <div className="mt-auto pt-3 border-t border-gray-100 flex items-center justify-between text-xs text-gray-500 mb-3">
+                    <span className="inline-flex items-center gap-1">
+                      <span className="text-gray-400">Registered</span>
+                      <span className="text-gray-700">
+                        {u.created_at
+                          ? new Date(u.created_at).toLocaleDateString()
+                          : "—"}
                       </span>
-                    </div>
-                    <span>Registered: {new Date(u.created_at).toLocaleDateString()}</span>
+                    </span>
                   </div>
+
+                  {isEditing ? (
+                    <div className="grid grid-cols-2 gap-2">
+                      <Button
+                        size="sm"
+                        className="bg-green-600 hover:bg-green-700 text-white"
+                        onClick={() => handleSaveEdit(u.id)}
+                        disabled={isSaving}
+                      >
+                        <Save className="w-3.5 h-3.5 mr-1.5" />
+                        {isSaving ? "Saving…" : "Save"}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={handleCancelEdit}
+                        disabled={isSaving}
+                      >
+                        <X className="w-3.5 h-3.5 mr-1.5" />
+                        Cancel
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-3 gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="border-blue-300 text-blue-700 hover:bg-blue-100 px-2"
+                        onClick={() => handleEditClick(u)}
+                      >
+                        <Edit className="w-3.5 h-3.5 mr-1" />
+                        Edit
+                      </Button>
+                      <Button
+                        size="sm"
+                        className="bg-amber-500 hover:bg-amber-600 text-white px-2"
+                        onClick={() => handleGeneratePassword(u)}
+                        disabled={resettingId === u.id}
+                        title="Generate Password"
+                      >
+                        <Key className="w-3.5 h-3.5 mr-1" />
+                        {resettingId === u.id ? "…" : "Password"}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="border-red-300 text-red-600 hover:bg-red-50 px-2"
+                        onClick={() => setUserToDelete(u)}
+                        disabled={isSelf}
+                        title={
+                          isSelf
+                            ? "You can't delete your own account"
+                            : "Delete user"
+                        }
+                      >
+                        <Trash2 className="w-3.5 h-3.5 mr-1" />
+                        Delete
+                      </Button>
+                    </div>
+                  )}
                 </Card>
               );
-            })
-          )}
-        </div>
+            })}
+          </div>
+        )}
 
         <div className="mt-8 text-center">
           <Link to="/admin-dashboard">

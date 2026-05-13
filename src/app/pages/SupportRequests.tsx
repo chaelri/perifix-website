@@ -23,7 +23,7 @@ import { Label } from "../components/ui/label";
 import { Switch } from "../components/ui/switch";
 import { Textarea } from "../components/ui/textarea";
 import { useAuth } from "../contexts/AuthContext";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "motion/react";
 import { db } from "../utils/firebase/client";
@@ -264,6 +264,7 @@ export function SupportRequests() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [searchQuery, setSearchQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [selectedRequest, setSelectedRequest] = useState<SupportRequest | null>(null);
@@ -305,6 +306,22 @@ export function SupportRequests() {
     });
     return () => unsub();
   }, [user, navigate, queryClient]);
+
+  // Deep-link support: ?open=<id> auto-opens that ticket. Used by the
+  // Settings page's Watching list so admins can jump straight into a thread.
+  useEffect(() => {
+    const openId = searchParams.get("open");
+    if (!openId || requests.length === 0) return;
+    const match = requests.find((r) => r.id === openId);
+    if (!match) return;
+    setSelectedRequest(match);
+    setEditing(false);
+    setViewModalOpen(true);
+    // Strip the param so closing + reopening manually doesn't re-trigger.
+    const next = new URLSearchParams(searchParams);
+    next.delete("open");
+    setSearchParams(next, { replace: true });
+  }, [requests, searchParams, setSearchParams]);
 
   // Subscribe to the open ticket's hidden_messages subcollection so admin
   // sees archived messages live (e.g. another admin tab toggling visibility).
