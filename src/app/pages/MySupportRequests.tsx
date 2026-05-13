@@ -264,30 +264,34 @@ function TicketRow({ ticket }: { ticket: MyTicket }) {
         </div>
       )}
 
-      {ticket.status === "waiting_for_response" && (
-        <div className="mt-4 pt-4 border-t border-gray-100">
+      <div className="mt-4 pt-4 border-t border-gray-100">
+        {ticket.status === "waiting_for_response" ? (
           <p className="text-sm font-medium text-gray-800 mb-2">
             Admin is waiting for your reply
           </p>
-          <Textarea
-            placeholder="Type your reply…"
-            value={reply}
-            onChange={(e) => setReply(e.target.value)}
-            rows={3}
-            disabled={sending}
-          />
-          <div className="flex justify-end mt-2">
-            <Button
-              onClick={sendReply}
-              disabled={sending || !reply.trim()}
-              className="bg-blue-600 hover:bg-blue-700 text-white"
-            >
-              <Send className="w-4 h-4 mr-2" />
-              {sending ? "Sending…" : "Send reply"}
-            </Button>
-          </div>
+        ) : (
+          <p className="text-sm font-medium text-gray-800 mb-2">
+            Add a reply or more details
+          </p>
+        )}
+        <Textarea
+          placeholder="Type your reply…"
+          value={reply}
+          onChange={(e) => setReply(e.target.value)}
+          rows={3}
+          disabled={sending}
+        />
+        <div className="flex justify-end mt-2">
+          <Button
+            onClick={sendReply}
+            disabled={sending || !reply.trim()}
+            className="bg-blue-600 hover:bg-blue-700 text-white"
+          >
+            <Send className="w-4 h-4 mr-2" />
+            {sending ? "Sending…" : "Send reply"}
+          </Button>
         </div>
-      )}
+      </div>
     </Card>
   );
 }

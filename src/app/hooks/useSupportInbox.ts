@@ -16,6 +16,15 @@ interface ThreadMessage {
 
 const LS_PREFIX = "perifix-support-last-seen:";
 
+// Module-level broadcast so every live useSupportInbox instance (e.g. Navbar +
+// MySupportRequests mounted at the same time) updates its `seenAt` the moment
+// any of them calls markAllRead — no page refresh required.
+type SeenListener = (userId: string, seenAt: number) => void;
+const seenListeners = new Set<SeenListener>();
+function broadcastSeen(userId: string, seenAt: number) {
+  seenListeners.forEach((l) => l(userId, seenAt));
+}
+
 function tsToMillis(v: unknown): number {
   if (!v) return 0;
   if (v instanceof Timestamp) return v.toMillis();
@@ -61,6 +70,13 @@ export function useSupportInbox(
       return;
     }
     setSeenAt(readSeen(userId));
+    const listener: SeenListener = (uid, value) => {
+      if (uid === userId) setSeenAt(value);
+    };
+    seenListeners.add(listener);
+    return () => {
+      seenListeners.delete(listener);
+    };
   }, [userId]);
 
   useEffect(() => {
@@ -105,7 +121,7 @@ export function useSupportInbox(
     } catch {
       // localStorage unavailable — non-fatal.
     }
-    setSeenAt(now);
+    broadcastSeen(userId, now);
   }, [userId, latestAdminAt]);
 
   const hasUnread = useMemo(
