@@ -136,7 +136,7 @@ export function Navbar() {
                   {hasSupportUnread && (
                     <span
                       aria-label="New admin reply"
-                      className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-red-500 ring-2 ring-white animate-pulse"
+                      className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-red-500 ring-2 ring-white"
                     />
                   )}
                 </button>
@@ -201,7 +201,7 @@ export function Navbar() {
                       {hasSupportUnread && (
                         <span
                           aria-label="New admin reply"
-                          className="absolute top-2 right-2 w-2.5 h-2.5 rounded-full bg-red-500 ring-2 ring-white animate-pulse"
+                          className="absolute top-2 right-2 w-2.5 h-2.5 rounded-full bg-red-500 ring-2 ring-white"
                         />
                       )}
                       <div className="flex items-center gap-3">
