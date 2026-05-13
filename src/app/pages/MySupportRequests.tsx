@@ -313,18 +313,18 @@ export function MySupportRequests() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { markAllRead, latestAdminAt } = useSupportInbox(user?.id, user?.role);
+  const { markOwnRead, ownLatestAt } = useSupportInbox(user?.id, user?.role);
 
   useEffect(() => {
     if (!user) navigate("/login-selection");
   }, [user, navigate]);
 
-  // Visiting this page acknowledges any new admin replies. Re-runs when a new
-  // admin message arrives while the page is already open.
+  // Visiting this page acknowledges any new replies on tickets I own.
+  // Re-runs when a new external message arrives while the page is open.
   useEffect(() => {
     if (!user) return;
-    markAllRead();
-  }, [user, latestAdminAt, markAllRead]);
+    markOwnRead();
+  }, [user, ownLatestAt, markOwnRead]);
 
   const {
     data: tickets = [],

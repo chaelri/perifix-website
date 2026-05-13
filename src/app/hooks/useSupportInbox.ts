@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   collection,
   onSnapshot,
+  orderBy,
   query,
   Timestamp,
   where,
@@ -14,15 +15,14 @@ interface ThreadMessage {
   at: string | Timestamp | { toDate?: () => Date };
 }
 
-const LS_PREFIX = "perifix-support-last-seen:";
+const LS_OWN_PREFIX = "perifix-support-last-seen-own:";
+const LS_WATCHING_PREFIX = "perifix-support-last-seen-watching:";
 
-// Module-level broadcast so every live useSupportInbox instance (e.g. Navbar +
-// MySupportRequests mounted at the same time) updates its `seenAt` the moment
-// any of them calls markAllRead — no page refresh required.
-type SeenListener = (userId: string, seenAt: number) => void;
+type SeenKind = "own" | "watching";
+type SeenListener = (kind: SeenKind, userId: string, seenAt: number) => void;
 const seenListeners = new Set<SeenListener>();
-function broadcastSeen(userId: string, seenAt: number) {
-  seenListeners.forEach((l) => l(userId, seenAt));
+function broadcastSeen(kind: SeenKind, userId: string, seenAt: number) {
+  seenListeners.forEach((l) => l(kind, userId, seenAt));
 }
 
 function tsToMillis(v: unknown): number {
@@ -42,9 +42,9 @@ function tsToMillis(v: unknown): number {
   return 0;
 }
 
-function readSeen(userId: string): number {
+function readSeen(prefix: string, userId: string): number {
   try {
-    const raw = localStorage.getItem(LS_PREFIX + userId);
+    const raw = localStorage.getItem(prefix + userId);
     return raw ? Number(raw) || 0 : 0;
   } catch {
     return 0;
@@ -52,26 +52,37 @@ function readSeen(userId: string): number {
 }
 
 /**
- * Subscribes to the current student's `support_requests` and reports whether
- * there's an admin message they haven't acknowledged yet. The "seen" marker is
- * a per-uid timestamp stored in localStorage — no Firestore schema change
- * needed. Admin role short-circuits (admins don't get a self-notification).
+ * Tracks two unread streams:
+ *   - "own"      → messages someone else sent on tickets you own
+ *   - "watching" → messages someone else sent on tickets you (as admin) have
+ *                  replied to but don't own
+ *
+ * Each stream has its own seen-marker in localStorage and an in-process
+ * broadcast so every live hook instance updates the moment any of them
+ * acknowledges activity (no page refresh needed).
  */
 export function useSupportInbox(
   userId: string | undefined,
   role: "student" | "admin" | undefined,
 ) {
-  const [latestAdminAt, setLatestAdminAt] = useState(0);
-  const [seenAt, setSeenAt] = useState(0);
+  const [ownLatestAt, setOwnLatestAt] = useState(0);
+  const [watchingLatestAt, setWatchingLatestAt] = useState(0);
+  const [ownSeenAt, setOwnSeenAt] = useState(0);
+  const [watchingSeenAt, setWatchingSeenAt] = useState(0);
 
+  // Seen markers + cross-instance broadcast wiring.
   useEffect(() => {
     if (!userId) {
-      setSeenAt(0);
+      setOwnSeenAt(0);
+      setWatchingSeenAt(0);
       return;
     }
-    setSeenAt(readSeen(userId));
-    const listener: SeenListener = (uid, value) => {
-      if (uid === userId) setSeenAt(value);
+    setOwnSeenAt(readSeen(LS_OWN_PREFIX, userId));
+    setWatchingSeenAt(readSeen(LS_WATCHING_PREFIX, userId));
+    const listener: SeenListener = (kind, uid, value) => {
+      if (uid !== userId) return;
+      if (kind === "own") setOwnSeenAt(value);
+      else setWatchingSeenAt(value);
     };
     seenListeners.add(listener);
     return () => {
@@ -79,9 +90,10 @@ export function useSupportInbox(
     };
   }, [userId]);
 
+  // Own tickets: latest message authored by anyone other than me.
   useEffect(() => {
-    if (!userId || role !== "student") {
-      setLatestAdminAt(0);
+    if (!userId) {
+      setOwnLatestAt(0);
       return;
     }
     const q = query(
@@ -94,40 +106,99 @@ export function useSupportInbox(
         const data = d.data();
         const messages = (data.messages as ThreadMessage[] | undefined) ?? [];
         for (const m of messages) {
-          if (m.by_role !== "admin") continue;
+          if (m.by_uid === userId) continue;
           const t = tsToMillis(m.at);
           if (t > maxAt) maxAt = t;
         }
-        // Legacy rows: last_reply authored by someone other than the ticket
-        // owner counts as an admin reply.
-        const lastReply = data.last_reply ?? null;
+        // Legacy rows: last_reply by someone other than me.
         const lastBy = data.last_reply_by ?? null;
-        const ownerId = data.user_id ?? null;
-        if (lastReply && lastBy && lastBy !== ownerId) {
+        const lastReply = data.last_reply ?? null;
+        if (lastReply && lastBy && lastBy !== userId) {
           const t = tsToMillis(data.last_reply_at);
           if (t > maxAt) maxAt = t;
         }
       });
-      setLatestAdminAt(maxAt);
+      setOwnLatestAt(maxAt);
+    });
+    return () => unsub();
+  }, [userId]);
+
+  // Watching (admin only): tickets I've replied to but don't own. Latest
+  // message by someone other than me drives the unread state.
+  useEffect(() => {
+    if (!userId || role !== "admin") {
+      setWatchingLatestAt(0);
+      return;
+    }
+    const q = query(
+      collection(db, "support_requests"),
+      orderBy("created_at", "desc"),
+    );
+    const unsub = onSnapshot(q, (snap) => {
+      let maxAt = 0;
+      snap.forEach((d) => {
+        const data = d.data();
+        const ownerId = (data.user_id as string | null) ?? null;
+        if (!ownerId || ownerId === userId) return;
+        const messages = (data.messages as ThreadMessage[] | undefined) ?? [];
+        const iReplied = messages.some((m) => m.by_uid === userId);
+        if (!iReplied) return;
+        for (const m of messages) {
+          if (m.by_uid === userId) continue;
+          const t = tsToMillis(m.at);
+          if (t > maxAt) maxAt = t;
+        }
+      });
+      setWatchingLatestAt(maxAt);
     });
     return () => unsub();
   }, [userId, role]);
 
-  const markAllRead = useCallback(() => {
+  const markOwnRead = useCallback(() => {
     if (!userId) return;
-    const now = Math.max(Date.now(), latestAdminAt);
+    const now = Math.max(Date.now(), ownLatestAt);
     try {
-      localStorage.setItem(LS_PREFIX + userId, String(now));
+      localStorage.setItem(LS_OWN_PREFIX + userId, String(now));
     } catch {
       // localStorage unavailable — non-fatal.
     }
-    broadcastSeen(userId, now);
-  }, [userId, latestAdminAt]);
+    broadcastSeen("own", userId, now);
+  }, [userId, ownLatestAt]);
 
-  const hasUnread = useMemo(
-    () => latestAdminAt > 0 && latestAdminAt > seenAt,
-    [latestAdminAt, seenAt],
+  const markWatchingRead = useCallback(() => {
+    if (!userId) return;
+    const now = Math.max(Date.now(), watchingLatestAt);
+    try {
+      localStorage.setItem(LS_WATCHING_PREFIX + userId, String(now));
+    } catch {
+      // localStorage unavailable — non-fatal.
+    }
+    broadcastSeen("watching", userId, now);
+  }, [userId, watchingLatestAt]);
+
+  const markAllRead = useCallback(() => {
+    markOwnRead();
+    markWatchingRead();
+  }, [markOwnRead, markWatchingRead]);
+
+  const hasUnreadOwn = useMemo(
+    () => ownLatestAt > 0 && ownLatestAt > ownSeenAt,
+    [ownLatestAt, ownSeenAt],
   );
+  const hasUnreadWatching = useMemo(
+    () => watchingLatestAt > 0 && watchingLatestAt > watchingSeenAt,
+    [watchingLatestAt, watchingSeenAt],
+  );
+  const hasUnread = hasUnreadOwn || hasUnreadWatching;
 
-  return { hasUnread, markAllRead, latestAdminAt };
+  return {
+    hasUnread,
+    hasUnreadOwn,
+    hasUnreadWatching,
+    ownLatestAt,
+    watchingLatestAt,
+    markOwnRead,
+    markWatchingRead,
+    markAllRead,
+  };
 }

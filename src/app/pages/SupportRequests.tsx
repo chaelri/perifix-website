@@ -22,6 +22,7 @@ import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { Textarea } from "../components/ui/textarea";
 import { useAuth } from "../contexts/AuthContext";
+import { useSupportInbox } from "../hooks/useSupportInbox";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "motion/react";
@@ -264,6 +265,17 @@ export function SupportRequests() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
+  const { markWatchingRead, watchingLatestAt } = useSupportInbox(
+    user?.id,
+    user?.role,
+  );
+
+  // Visiting this page acknowledges new student replies on tickets the
+  // admin is watching. Re-runs whenever a new message lands while open.
+  useEffect(() => {
+    if (user?.role !== "admin") return;
+    markWatchingRead();
+  }, [user?.role, watchingLatestAt, markWatchingRead]);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [selectedRequest, setSelectedRequest] = useState<SupportRequest | null>(null);

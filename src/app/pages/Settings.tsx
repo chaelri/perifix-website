@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "../contexts/AuthContext";
+import { useSupportInbox } from "../hooks/useSupportInbox";
 import { auth, db } from "../utils/firebase/client";
 import {
   collection,
@@ -241,6 +242,7 @@ function InlineTicketList({
   onPick,
   viewAllHref,
   onViewAll,
+  hasUnread,
 }: {
   title: string;
   description: string;
@@ -251,10 +253,17 @@ function InlineTicketList({
   onPick: (row: SupportRow) => void;
   viewAllHref?: string;
   onViewAll?: () => void;
+  hasUnread?: boolean;
 }) {
   const visible = rows.slice(0, 5);
   return (
-    <Card className="p-5 border border-gray-200">
+    <Card className="relative p-5 border border-gray-200">
+      {hasUnread && (
+        <span
+          aria-label="New activity"
+          className="absolute top-3 right-3 w-2.5 h-2.5 rounded-full bg-red-500 ring-2 ring-white"
+        />
+      )}
       <div className="flex items-center gap-3 mb-4">
         <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center">
           <Icon className="w-5 h-5 text-blue-600" />
@@ -311,6 +320,10 @@ export function Settings() {
   const [isSaving, setIsSaving] = useState(false);
 
   const isAdmin = user?.role === "admin";
+  const { hasUnreadOwn, hasUnreadWatching } = useSupportInbox(
+    user?.id,
+    user?.role,
+  );
 
   useEffect(() => {
     if (!user) navigate("/login-selection");
@@ -566,6 +579,7 @@ export function Settings() {
             emptyText="You haven't submitted any tickets yet."
             onPick={() => navigate("/my-tickets")}
             onViewAll={() => navigate("/my-tickets")}
+            hasUnread={hasUnreadOwn}
           />
 
           {isAdmin && (
@@ -578,6 +592,7 @@ export function Settings() {
               emptyText="You haven't replied to any support requests yet."
               onPick={(r) => navigate(`/support-requests?open=${r.id}`)}
               onViewAll={() => navigate("/support-requests")}
+              hasUnread={hasUnreadWatching}
             />
           )}
         </div>
